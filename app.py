@@ -13,6 +13,7 @@ import mimetypes
 import time
 import config
 from db_adapter import db
+import mailer
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -209,7 +210,15 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self._send_json(400, {'success': False, 'message': 'Please enter an email address.'})
                 return
             res = db.initiate_forgot_password(email)
-            self._send_json(200 if res['success'] else 404, res)
+            if res['success']:
+                mailer.send_password_reset_email(res['email'], res['full_name'], res['code'])
+                self._send_json(200, {
+                    'success': True,
+                    'email': res['email'],
+                    'message': 'We have sent you a code to verify.'
+                })
+            else:
+                self._send_json(404, {'success': False, 'message': res['message']})
             return
 
         # 4. API: Reset Password (Step 2: Submit New Password with Code/Token)

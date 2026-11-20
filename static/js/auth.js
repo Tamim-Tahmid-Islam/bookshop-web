@@ -192,6 +192,9 @@ const Auth = {
       const data = await res.json();
       if (res.ok && data.success) {
         showToast('Registration successful! Please sign in.', 'success');
+        // Clear registration form so returning to the register tab is completely empty
+        const regForm = document.getElementById('register-form');
+        if (regForm) regForm.reset();
         this.switchTab('login');
         document.getElementById('login-identifier').value = email;
       } else {
@@ -213,26 +216,19 @@ const Auth = {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast('Reset verification token created!', 'success');
+        showToast('We have sent you a code to verify.', 'success');
         
-        // Show demo simulation box with the code and token
-        const demoBox = document.getElementById('demo-token-display');
-        const codeSpan = document.getElementById('demo-generated-code');
+        // Ensure verification code input box remains completely empty
         const tokenInput = document.getElementById('reset-token-input');
-        
-        if (demoBox && codeSpan) {
-          codeSpan.textContent = data.code;
-          demoBox.style.display = 'block';
-        }
         if (tokenInput) {
-          tokenInput.value = data.code; // Pre-fill with the code for convenience!
+          tokenInput.value = '';
         }
 
-        // Switch to Step 2: Reset Form view
+        // Switch to Step 2: Verification & New Password view
         document.getElementById('forgot-step-1').style.display = 'none';
         document.getElementById('forgot-step-2').style.display = 'block';
       } else {
-        showToast(data.message || 'Error creating reset token.', 'error');
+        showToast(data.message || 'Error processing reset request.', 'error');
       }
     } catch (err) {
       showToast('Network error submitting reset request.', 'error');
@@ -241,9 +237,14 @@ const Auth = {
 
   async handleResetSubmit(e) {
     e.preventDefault();
-    const tokenOrCode = document.getElementById('reset-token-input').value;
+    const tokenOrCode = document.getElementById('reset-token-input').value.trim();
     const newPassword = document.getElementById('reset-new-password').value;
     const confirmPassword = document.getElementById('reset-confirm-password').value;
+
+    if (newPassword.length < 8) {
+      showToast('Password must be at least 8 characters.', 'error');
+      return;
+    }
 
     if (newPassword !== confirmPassword) {
       showToast('Passwords do not match.', 'error');
@@ -259,11 +260,13 @@ const Auth = {
       const data = await res.json();
       if (res.ok && data.success) {
         showToast(data.message, 'success');
-        // Reset form views
+        // Reset forms and view state
+        const resetForm = document.getElementById('reset-form');
+        const forgotForm = document.getElementById('forgot-form');
+        if (resetForm) resetForm.reset();
+        if (forgotForm) forgotForm.reset();
         document.getElementById('forgot-step-1').style.display = 'block';
         document.getElementById('forgot-step-2').style.display = 'none';
-        const demoBox = document.getElementById('demo-token-display');
-        if (demoBox) demoBox.style.display = 'none';
         this.switchTab('login');
       } else {
         showToast(data.message || 'Password reset failed.', 'error');

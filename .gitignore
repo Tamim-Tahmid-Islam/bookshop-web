@@ -45,6 +45,7 @@ venv.bak/
 # Database files & local runtime artifacts
 *.db-journal
 *.sqlite3-journal
+email_outbox.log
 
 # IDEs & Editors
 .vscode/
