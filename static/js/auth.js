@@ -28,6 +28,13 @@ const Auth = {
     this.updateUI();
   },
 
+  isAdmin() {
+    return !!(this.currentUser &&
+              this.currentUser.role === 'Admin' &&
+              this.currentUser.email &&
+              this.currentUser.email.toLowerCase().trim() === 'tamimtahmid270@gmail.com');
+  },
+
   clearSession() {
     this.currentUser = null;
     localStorage.removeItem('pagevault_user');
@@ -41,19 +48,35 @@ const Auth = {
     const userNameSpan = document.getElementById('user-full-name');
     const userRoleBadge = document.getElementById('user-role-badge');
     const addBookNavBtn = document.getElementById('add-book-nav-btn');
+    const openAdminBtn = document.getElementById('open-admin-btn');
+    const userAvatar = document.getElementById('user-avatar-initial');
+
+    const admin = this.isAdmin();
+
+    // Admin portal & Add book buttons are ONLY shown to tamimtahmid270@gmail.com
+    if (openAdminBtn) {
+      openAdminBtn.style.display = admin ? 'inline-flex' : 'none';
+    }
+    if (addBookNavBtn) {
+      addBookNavBtn.style.display = admin ? 'inline-flex' : 'none';
+    }
 
     if (this.currentUser) {
       if (authLoggedOut) authLoggedOut.style.display = 'none';
       if (authLoggedIn) authLoggedIn.style.display = 'flex';
-      if (userNameSpan) userNameSpan.textContent = this.currentUser.full_name;
-      if (userRoleBadge) userRoleBadge.textContent = this.currentUser.role;
-      if (addBookNavBtn) {
-        // Admin or Librarian can add books
-        addBookNavBtn.style.display = (this.currentUser.role === 'Admin' || this.currentUser.role === 'Librarian') ? 'inline-flex' : 'none';
+      if (userNameSpan) userNameSpan.textContent = this.currentUser.full_name || this.currentUser.username;
+      if (userRoleBadge) {
+        userRoleBadge.textContent = this.currentUser.role;
+        // Only show role badge if admin
+        userRoleBadge.style.display = admin ? 'inline-block' : 'none';
+      }
+      if (userAvatar && this.currentUser.full_name) {
+        userAvatar.textContent = this.currentUser.full_name.charAt(0).toUpperCase();
       }
     } else {
       if (authLoggedOut) authLoggedOut.style.display = 'flex';
       if (authLoggedIn) authLoggedIn.style.display = 'none';
+      if (openAdminBtn) openAdminBtn.style.display = 'none';
       if (addBookNavBtn) addBookNavBtn.style.display = 'none';
     }
   },

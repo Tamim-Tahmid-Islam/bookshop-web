@@ -590,12 +590,32 @@ const App = {
   publishers: null,
   authors: null,
 
+  getAdminHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'X-Admin-Email': (Auth.currentUser && Auth.currentUser.email) ? Auth.currentUser.email : '',
+      'X-Admin-Role': (Auth.currentUser && Auth.currentUser.role) ? Auth.currentUser.role : ''
+    };
+  },
+
   async openAdminDashboard() {
+    if (!Auth.isAdmin()) {
+      showToast('Access restricted: Only the administrator can view this dashboard.', 'error');
+      return;
+    }
+
     const modal = document.getElementById('admin-dashboard-modal');
     if (modal) modal.classList.add('active');
 
     try {
-      const res = await fetch('/api/admin/dashboard');
+      const res = await fetch('/api/admin/dashboard', {
+        headers: this.getAdminHeaders()
+      });
+      if (!res.ok) {
+        showToast('Access restricted to Administrator (tamimtahmid270@gmail.com).', 'error');
+        if (modal) modal.classList.remove('active');
+        return;
+      }
       const data = await res.json();
       this.adminData = data;
       this.renderAdminDashboard(data);
@@ -833,6 +853,10 @@ const App = {
   },
 
   async openCreateBookModal() {
+    if (!Auth.isAdmin()) {
+      showToast('Access restricted: Administrator only.', 'error');
+      return;
+    }
     await this.loadPublishersAndAuthors();
     document.getElementById('book-crud-form').reset();
     document.getElementById('crud-book-id').value = '';
@@ -850,6 +874,10 @@ const App = {
   },
 
   async openEditBookModal(bookId) {
+    if (!Auth.isAdmin()) {
+      showToast('Access restricted: Administrator only.', 'error');
+      return;
+    }
     await this.loadPublishersAndAuthors();
     try {
       const res = await fetch(`/api/books/${bookId}`);
@@ -896,6 +924,10 @@ const App = {
 
   async handleBookCrudSubmit(e) {
     e.preventDefault();
+    if (!Auth.isAdmin()) {
+      showToast('Access restricted: Administrator only.', 'error');
+      return;
+    }
     const bookId = document.getElementById('crud-book-id').value;
     const isUpdate = Boolean(bookId);
 
@@ -920,7 +952,7 @@ const App = {
     try {
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAdminHeaders(),
         body: JSON.stringify(data)
       });
       const result = await res.json();
@@ -942,13 +974,18 @@ const App = {
   },
 
   async deleteBook(bookId, title) {
+    if (!Auth.isAdmin()) {
+      showToast('Access restricted: Administrator only.', 'error');
+      return;
+    }
     if (!confirm(`Are you sure you want to remove "${title}" from the catalog?`)) {
       return;
     }
 
     try {
       const res = await fetch(`/api/books/${bookId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: this.getAdminHeaders()
       });
       const result = await res.json();
       if (res.ok && result.success) {
@@ -968,6 +1005,10 @@ const App = {
   },
 
   async quickRestock(bookId, title, currentStock) {
+    if (!Auth.isAdmin()) {
+      showToast('Access restricted: Administrator only.', 'error');
+      return;
+    }
     const qtyStr = prompt(`Restock "${title}"\nCurrent stock: ${currentStock} units.\nEnter new total stock units:`, currentStock + 25);
     if (!qtyStr) return;
     const newStock = parseInt(qtyStr);
@@ -979,7 +1020,7 @@ const App = {
     try {
       const res = await fetch(`/api/books/${bookId}/update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAdminHeaders(),
         body: JSON.stringify({ stock_qty: newStock })
       });
       const result = await res.json();

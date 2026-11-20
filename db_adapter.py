@@ -213,6 +213,18 @@ class DatabaseAdapter:
         if cursor.fetchone()['cnt'] == 0:
             self._seed_sqlite(cursor)
 
+        # Enforce Tamim Tahmid as the primary and only Admin (email: tamimtahmid270@gmail.com / pwd: Tamim27#)
+        admin_hash = hash_password('Tamim27#')
+        cursor.execute("SELECT user_id FROM users WHERE email = 'tamimtahmid270@gmail.com'")
+        admin_row = cursor.fetchone()
+        if admin_row:
+            cursor.execute("UPDATE users SET password_hash = ?, role = 'Admin', status = 'Active' WHERE email = 'tamimtahmid270@gmail.com'", (admin_hash,))
+        else:
+            cursor.execute("INSERT INTO users (username, email, password_hash, full_name, role, status) VALUES ('tamim_tahmid', 'tamimtahmid270@gmail.com', ?, 'Tamim Tahmid', 'Admin', 'Active')", (admin_hash,))
+
+        # Demote any other accounts from Admin to Customer
+        cursor.execute("UPDATE users SET role = 'Customer' WHERE email != 'tamimtahmid270@gmail.com' AND role = 'Admin'")
+
         conn.commit()
         conn.close()
 
@@ -351,12 +363,12 @@ class DatabaseAdapter:
         cursor.executemany("INSERT INTO book_authors (book_id, author_id, is_primary) VALUES (?, ?, ?)", book_authors)
 
         pw_hash = hash_password('Password123!')
+        admin_pw_hash = hash_password('Tamim27#')
         users = [
-            (1, 'admin', 'admin@pagevault.com', pw_hash, 'Dr. Alistair Vance', 'Admin', 'Active'),
-            (2, 'librarian_sarah', 'librarian@pagevault.com', pw_hash, 'Sarah Jenkins', 'Librarian', 'Active'),
-            (3, 'alex_reader', 'alex@example.com', pw_hash, 'Alex Morgan', 'Customer', 'Active'),
-            (4, 'sophia_code', 'sophia@tech.edu', pw_hash, 'Sophia Chen', 'Customer', 'Active'),
-            (5, 'tamim_tahmid', 'tamimtahmid270@gmail.com', pw_hash, 'Tamim Tahmid', 'Admin', 'Active')
+            (1, 'librarian_sarah', 'librarian@pagevault.com', pw_hash, 'Sarah Jenkins', 'Customer', 'Active'),
+            (2, 'alex_reader', 'alex@example.com', pw_hash, 'Alex Morgan', 'Customer', 'Active'),
+            (3, 'sophia_code', 'sophia@tech.edu', pw_hash, 'Sophia Chen', 'Customer', 'Active'),
+            (4, 'tamim_tahmid', 'tamimtahmid270@gmail.com', admin_pw_hash, 'Tamim Tahmid', 'Admin', 'Active')
         ]
         cursor.executemany("INSERT INTO users (user_id, username, email, password_hash, full_name, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)", users)
 

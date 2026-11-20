@@ -119,11 +119,10 @@ INSERT INTO book_authors (book_id, author_id, is_primary) VALUES
 
 -- 6. Insert Users
 INSERT INTO users (user_id, username, email, password_hash, full_name, role, status) VALUES
-(1, 'admin', 'admin@pagevault.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Dr. Alistair Vance', 'Admin', 'Active'),
-(2, 'librarian_sarah', 'librarian@pagevault.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Sarah Jenkins', 'Librarian', 'Active'),
-(3, 'alex_reader', 'alex@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Alex Morgan', 'Customer', 'Active'),
-(4, 'sophia_code', 'sophia@tech.edu', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Sophia Chen', 'Customer', 'Active'),
-(5, 'tamim_tahmid', 'tamimtahmid270@gmail.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Tamim Tahmid', 'Admin', 'Active');
+(1, 'demo_staff', 'staff@pagevault.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Sarah Jenkins', 'Customer', 'Active'),
+(2, 'alex_reader', 'alex@example.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Alex Morgan', 'Customer', 'Active'),
+(3, 'sophia_code', 'sophia@tech.edu', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Sophia Chen', 'Customer', 'Active'),
+(4, 'tamim_tahmid', 'tamimtahmid270@gmail.com', 'e1fbba4563c9966662a00f863a894dc4439bc480185a6ee4d98f14b2aaea4d87', 'Tamim Tahmid', 'Admin', 'Active');
 
 -- 7. Insert Sample Password Reset Request
 INSERT INTO password_resets (user_id, reset_token, reset_code, expires_at, is_used) VALUES

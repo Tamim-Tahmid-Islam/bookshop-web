@@ -99,8 +99,13 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json(200, {'authors': authors})
             return
 
-        # 3.2 API: Admin Dashboard Data
+        # 3.2 API: Admin Dashboard Data (Protected - tamimtahmid270@gmail.com only)
         if path == '/api/admin/dashboard':
+            admin_email = self.headers.get('X-Admin-Email', '').strip().lower()
+            admin_role = self.headers.get('X-Admin-Role', '').strip()
+            if admin_email != 'tamimtahmid270@gmail.com' or admin_role != 'Admin':
+                self._send_json(403, {'success': False, 'message': 'Access forbidden: Admin access only.'})
+                return
             data = db.get_admin_dashboard_data()
             self._send_json(200, data)
             return
@@ -232,14 +237,24 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json(200 if res['success'] else 400, res)
             return
 
-        # 5. API: Add New Book
+        # 5. API: Add New Book (Admin only)
         if path == '/api/books':
+            admin_email = self.headers.get('X-Admin-Email', '').strip().lower()
+            admin_role = self.headers.get('X-Admin-Role', '').strip()
+            if admin_email != 'tamimtahmid270@gmail.com' or admin_role != 'Admin':
+                self._send_json(403, {'success': False, 'message': 'Access forbidden: Admin access only.'})
+                return
             res = db.create_book(body)
             self._send_json(201 if res['success'] else 400, res)
             return
 
-        # 5.1 API: Update Book (POST fallback)
+        # 5.1 API: Update Book (POST fallback - Admin only)
         if path.startswith('/api/books/') and path.endswith('/update'):
+            admin_email = self.headers.get('X-Admin-Email', '').strip().lower()
+            admin_role = self.headers.get('X-Admin-Role', '').strip()
+            if admin_email != 'tamimtahmid270@gmail.com' or admin_role != 'Admin':
+                self._send_json(403, {'success': False, 'message': 'Access forbidden: Admin access only.'})
+                return
             try:
                 book_id = int(path.split('/')[-2])
                 res = db.update_book(book_id, body)
@@ -274,6 +289,11 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
         body = self._read_body_json()
 
         if path.startswith('/api/books/'):
+            admin_email = self.headers.get('X-Admin-Email', '').strip().lower()
+            admin_role = self.headers.get('X-Admin-Role', '').strip()
+            if admin_email != 'tamimtahmid270@gmail.com' or admin_role != 'Admin':
+                self._send_json(403, {'success': False, 'message': 'Access forbidden: Admin access only.'})
+                return
             try:
                 book_id = int(path.split('/')[-1])
                 res = db.update_book(book_id, body)
@@ -288,6 +308,11 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         if path.startswith('/api/books/'):
+            admin_email = self.headers.get('X-Admin-Email', '').strip().lower()
+            admin_role = self.headers.get('X-Admin-Role', '').strip()
+            if admin_email != 'tamimtahmid270@gmail.com' or admin_role != 'Admin':
+                self._send_json(403, {'success': False, 'message': 'Access forbidden: Admin access only.'})
+                return
             try:
                 book_id = int(path.split('/')[-1])
                 res = db.delete_book(book_id)

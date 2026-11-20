@@ -75,7 +75,7 @@
       <!-- Wishlist Action Button -->
       <button id="open-wishlist-btn" class="nav-action-pill" title="View Saved Books in Wishlist">
         <span class="nav-action-icon">♡</span>
-        <span>Wishlist</span>
+        <span class="nav-action-text">Wishlist</span>
         <span class="count-badge" id="wishlist-count">0</span>
       </button>
 
@@ -86,19 +86,19 @@
           <circle cx="20" cy="21" r="1"></circle>
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
-        <span>Cart</span>
+        <span class="nav-action-text">Cart</span>
         <span class="count-badge" id="cart-count">0</span>
       </button>
 
-      <!-- Admin Dashboard Action Button -->
-      <button id="open-admin-btn" class="nav-action-pill nav-action-admin" title="Open Admin Portal" onclick="App.openAdminDashboard()">
+      <!-- Admin Dashboard Action Button (Strictly hidden for guests & normal users; shown ONLY to tamimtahmid270@gmail.com) -->
+      <button id="open-admin-btn" class="nav-action-pill nav-action-admin" title="Open Admin Portal" style="display: none;" onclick="App.openAdminDashboard()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="7" height="7"></rect>
           <rect x="14" y="3" width="7" height="7"></rect>
           <rect x="14" y="14" width="7" height="7"></rect>
           <rect x="3" y="14" width="7" height="7"></rect>
         </svg>
-        <span>Admin Portal</span>
+        <span class="nav-action-text">Admin</span>
       </button>
 
       <button id="add-book-nav-btn" class="auth-btn auth-btn-primary" style="display: none;" onclick="App.openCreateBookModal()">
@@ -386,7 +386,7 @@
           <form id="login-form">
             <div class="form-group">
               <label class="form-label">Email Address or Username</label>
-              <input type="text" id="login-identifier" class="form-input" placeholder="e.g. alex@example.com or admin" required />
+              <input type="text" id="login-identifier" class="form-input" placeholder="Enter your email or username" required />
             </div>
             <div class="form-group">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
