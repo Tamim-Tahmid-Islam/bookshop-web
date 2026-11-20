@@ -92,6 +92,18 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json(200, {'publishers': publishers})
             return
 
+        # 3.1 API: Authors
+        if path == '/api/authors':
+            authors = db.get_authors()
+            self._send_json(200, {'authors': authors})
+            return
+
+        # 3.2 API: Admin Dashboard Data
+        if path == '/api/admin/dashboard':
+            data = db.get_admin_dashboard_data()
+            self._send_json(200, data)
+            return
+
         # 4. API: Single Book details
         if path.startswith('/api/books/'):
             try:
@@ -217,10 +229,36 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json(201 if res['success'] else 400, res)
             return
 
+        # 5.1 API: Update Book (POST fallback)
+        if path.startswith('/api/books/') and path.endswith('/update'):
+            try:
+                book_id = int(path.split('/')[-2])
+                res = db.update_book(book_id, body)
+                self._send_json(200 if res['success'] else 400, res)
+            except ValueError:
+                self._send_json(400, {'error': 'Invalid book ID'})
+            return
+
         # 6. API: Checkout & Create Order (Transactional ACID Order Placement)
         if path == '/api/orders':
             res = db.create_order(body)
             self._send_json(201 if res['success'] else 400, res)
+            return
+
+        self._send_json(404, {'error': 'Endpoint not found'})
+
+    def do_PUT(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        body = self._read_body_json()
+
+        if path.startswith('/api/books/'):
+            try:
+                book_id = int(path.split('/')[-1])
+                res = db.update_book(book_id, body)
+                self._send_json(200 if res['success'] else 400, res)
+            except ValueError:
+                self._send_json(400, {'error': 'Invalid book ID'})
             return
 
         self._send_json(404, {'error': 'Endpoint not found'})

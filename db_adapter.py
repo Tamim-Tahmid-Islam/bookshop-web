@@ -415,6 +415,14 @@ class DatabaseAdapter:
         conn.close()
         return rows
 
+    def get_authors(self):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT author_id, name, country FROM authors ORDER BY name ASC")
+        rows = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return rows
+
     def get_live_suggestions(self, query_text: str, limit: int = 5):
         """Returns rapid instant search suggestions for the typeahead dropdown."""
         query_text = query_text.strip()
@@ -500,6 +508,29 @@ class DatabaseAdapter:
             except ValueError:
                 pass
 
+        publisher_id = params.get('publisher_id')
+        if publisher_id and str(publisher_id).isdigit() and int(publisher_id) > 0:
+            where_clauses.append("b.publisher_id = ?")
+            sql_params.append(int(publisher_id))
+            algebra_selections.append(f"publisher_id = {publisher_id}")
+
+        on_sale = params.get('on_sale')
+        if on_sale in [True, 'true', '1', 1]:
+            where_clauses.append("b.discount_pct > 0")
+            algebra_selections.append("discount_pct > 0")
+
+        year_min = params.get('year_min')
+        if year_min and str(year_min).isdigit():
+            where_clauses.append("b.publication_year >= ?")
+            sql_params.append(int(year_min))
+            algebra_selections.append(f"year >= {year_min}")
+
+        year_max = params.get('year_max')
+        if year_max and str(year_max).isdigit():
+            where_clauses.append("b.publication_year <= ?")
+            sql_params.append(int(year_max))
+            algebra_selections.append(f"year <= {year_max}")
+
         if in_stock in [True, 'true', '1', 1]:
             where_clauses.append("b.stock_qty > 0")
             algebra_selections.append("stock_qty > 0")
@@ -525,8 +556,12 @@ class DatabaseAdapter:
             order_by = "avg_rating DESC, total_reviews DESC"
         elif sort_by == 'year_desc':
             order_by = "b.publication_year DESC"
+        elif sort_by == 'year_asc':
+            order_by = "b.publication_year ASC"
         elif sort_by == 'title_asc':
             order_by = "b.title ASC"
+        elif sort_by == 'discount_desc':
+            order_by = "b.discount_pct DESC"
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
@@ -587,12 +622,18 @@ class DatabaseAdapter:
         conn.close()
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
+        total_pages = max(1, (total_records + page_size - 1) // page_size) if total_records else 1
+        start_index = (page - 1) * page_size + 1 if total_records > 0 else 0
+        end_index = min(page * page_size, total_records)
+
         return {
             'books': books,
             'total_count': total_records,
             'page': page,
             'page_size': page_size,
-            'total_pages': max(1, (total_records + page_size - 1) // page_size),
+            'total_pages': total_pages,
+            'start_index': start_index,
+            'end_index': end_index,
             'execution_time_ms': elapsed_ms,
             'db_engine': self.mode
         }
@@ -913,6 +954,146 @@ class DatabaseAdapter:
         except Exception as e:
             conn.close()
             return {'success': False, 'message': str(e)}
+
+    def update_book(self, book_id: int, data: dict):
+        """Updates book metadata with transaction safety and audit logging."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT price, stock_qty FROM books WHERE book_id = ? AND is_deleted = 0", (book_id,))
+            existing = cursor.fetchone()
+            if not existing:
+                conn.close()
+                return {'success': False, 'message': 'Book not found or has been archived.'}
+
+            old_price = float(existing['price'])
+            old_stock = int(existing['stock_qty'])
+            new_price = float(data.get('price', old_price))
+            new_stock = int(data.get('stock_qty', old_stock))
+
+            cursor.execute("""
+                UPDATE books SET
+                    isbn = ?,
+                    title = ?,
+                    subtitle = ?,
+                    publisher_id = ?,
+                    category_id = ?,
+                    price = ?,
+                    discount_pct = ?,
+                    stock_qty = ?,
+                    publication_year = ?,
+                    page_count = ?,
+                    language = ?,
+                    cover_image = ?,
+                    description = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE book_id = ?
+            """, (
+                data['isbn'], data['title'], data.get('subtitle', ''),
+                int(data.get('publisher_id', 1)), int(data.get('category_id', 1)),
+                new_price, float(data.get('discount_pct', 0)),
+                new_stock, int(data.get('publication_year', 2024)),
+                int(data.get('page_count', 300)), data.get('language', 'English'),
+                data.get('cover_image', ''), data.get('description', ''),
+                book_id
+            ))
+
+            if 'author_id' in data and data['author_id']:
+                cursor.execute("UPDATE book_authors SET author_id = ? WHERE book_id = ? AND is_primary = 1",
+                               (int(data['author_id']), book_id))
+
+            cursor.execute("""
+                INSERT INTO book_audit_log (book_id, action, changed_by, old_price, new_price, old_stock, new_stock)
+                VALUES (?, 'UPDATE', 'Admin', ?, ?, ?, ?)
+            """, (book_id, old_price, new_price, old_stock, new_stock))
+
+            conn.commit()
+            conn.close()
+            return {'success': True, 'book_id': book_id, 'message': f'Book "{data["title"]}" updated successfully.'}
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return {'success': False, 'message': str(e)}
+
+    def get_admin_dashboard_data(self):
+        """Returns comprehensive catalog stats, recent orders, inventory alerts, and full books catalog."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # 1. Total Active Books
+        cursor.execute("SELECT COUNT(*) AS total_books FROM books WHERE is_deleted = 0")
+        total_books = cursor.fetchone()['total_books']
+
+        # 2. Total Categories
+        cursor.execute("SELECT COUNT(*) AS total_cats FROM categories")
+        total_categories = cursor.fetchone()['total_cats']
+
+        # 3. Inventory Alerts (Low Stock <= 25)
+        cursor.execute("SELECT COUNT(*) AS low_stock_count FROM books WHERE is_deleted = 0 AND stock_qty <= 25")
+        low_stock_count = cursor.fetchone()['low_stock_count']
+
+        # 4. Total Orders & Revenue
+        cursor.execute("SELECT COUNT(*) AS total_orders, COALESCE(SUM(total_amount), 0) AS total_revenue FROM orders")
+        order_stats = cursor.fetchone()
+        total_orders = order_stats['total_orders']
+        total_revenue = round(order_stats['total_revenue'], 2)
+
+        # 5. Recent Orders (Latest 10)
+        cursor.execute("""
+            SELECT order_id, order_code, customer_name, customer_phone, delivery_address,
+                   district, payment_method, payment_status, order_status, total_amount, created_at
+            FROM orders
+            ORDER BY created_at DESC
+            LIMIT 10
+        """)
+        recent_orders = [dict(r) for r in cursor.fetchall()]
+
+        # 6. Low stock items
+        cursor.execute("""
+            SELECT b.book_id, b.title, b.stock_qty, b.price, b.cover_image, c.name AS category_name
+            FROM books b
+            INNER JOIN categories c ON b.category_id = c.category_id
+            WHERE b.is_deleted = 0 AND b.stock_qty <= 25
+            ORDER BY b.stock_qty ASC
+            LIMIT 8
+        """)
+        low_stock_items = [dict(r) for r in cursor.fetchall()]
+
+        # 7. All Books with details for Admin Table
+        cursor.execute("""
+            SELECT 
+                b.book_id, b.isbn, b.title, b.subtitle, b.price, b.discount_pct,
+                ROUND(b.price * (1.0 - (b.discount_pct / 100.0)), 2) AS effective_price,
+                b.stock_qty, b.publication_year, b.page_count, b.language, b.cover_image, b.description,
+                b.category_id, b.publisher_id,
+                c.name AS category_name, p.name AS publisher_name,
+                COALESCE(GROUP_CONCAT(DISTINCT a.name), 'Unknown') AS author_names,
+                ba.author_id AS primary_author_id
+            FROM books b
+            INNER JOIN categories c ON b.category_id = c.category_id
+            LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
+            LEFT JOIN book_authors ba ON b.book_id = ba.book_id AND ba.is_primary = 1
+            LEFT JOIN authors a ON ba.author_id = a.author_id
+            WHERE b.is_deleted = 0
+            GROUP BY b.book_id
+            ORDER BY b.book_id DESC
+        """)
+        all_books = [dict(r) for r in cursor.fetchall()]
+
+        conn.close()
+        return {
+            'metrics': {
+                'total_books': total_books,
+                'total_categories': total_categories,
+                'low_stock_count': low_stock_count,
+                'total_orders': total_orders,
+                'total_revenue': total_revenue,
+                'engine': self.mode
+            },
+            'recent_orders': recent_orders,
+            'low_stock_items': low_stock_items,
+            'books': all_books
+        }
 
 
 db = DatabaseAdapter()

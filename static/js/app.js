@@ -105,16 +105,22 @@ const App = {
       wishlistBtn.addEventListener('click', () => this.openWishlistModal());
     }
 
+    // Admin button in top navbar
+    const adminBtn = document.getElementById('open-admin-btn');
+    if (adminBtn) {
+      adminBtn.addEventListener('click', () => this.openAdminDashboard());
+    }
+
     // Add Book Nav button
     const addBookNavBtn = document.getElementById('add-book-nav-btn');
     if (addBookNavBtn) {
-      addBookNavBtn.addEventListener('click', () => this.openAddBookModal());
+      addBookNavBtn.addEventListener('click', () => this.openCreateBookModal());
     }
 
-    // Add Book Form submit
-    const addBookForm = document.getElementById('add-book-form');
-    if (addBookForm) {
-      addBookForm.addEventListener('submit', (e) => this.handleAddBookSubmit(e));
+    // Book CRUD Form submit
+    const crudForm = document.getElementById('book-crud-form');
+    if (crudForm) {
+      crudForm.addEventListener('submit', (e) => this.handleBookCrudSubmit(e));
     }
 
     // Checkout Form submit
@@ -155,10 +161,12 @@ const App = {
 
       list.innerHTML = html;
 
-      // Also populate category dropdown in Add Book form
-      const select = document.getElementById('add-book-category');
+      this.categories = categories;
+
+      // Populate category dropdown in CRUD Book form
+      const select = document.getElementById('crud-book-category');
       if (select) {
-        select.innerHTML = categories.map(c => `<option value="${c.category_id}">${c.name}</option>`).join('');
+        select.innerHTML = categories.map(c => `<option value="${c.category_id}">${escapeHtml(c.name)}</option>`).join('');
       }
     } catch (err) {
       console.error('Error loading categories:', err);
@@ -566,44 +574,415 @@ const App = {
     }
   },
 
-  openAddBookModal() {
-    const modal = document.getElementById('add-book-modal');
+  // -------------------------------------------------------------------------
+  // Admin Dashboard & CRUD Books Controller
+  // -------------------------------------------------------------------------
+  adminData: null,
+  publishers: null,
+  authors: null,
+
+  async openAdminDashboard() {
+    const modal = document.getElementById('admin-dashboard-modal');
+    if (modal) modal.classList.add('active');
+
+    try {
+      const res = await fetch('/api/admin/dashboard');
+      const data = await res.json();
+      this.adminData = data;
+      this.renderAdminDashboard(data);
+    } catch (err) {
+      showToast('Could not load admin dashboard data.', 'error');
+    }
+  },
+
+  closeAdminDashboard() {
+    const modal = document.getElementById('admin-dashboard-modal');
+    if (modal) modal.classList.remove('active');
+  },
+
+  switchAdminTab(tabName) {
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.admin-panel').forEach(panel => {
+      panel.classList.toggle('active', panel.id === `admin-panel-${tabName}`);
+    });
+  },
+
+  renderAdminDashboard(data) {
+    if (!data) return;
+
+    // Metrics
+    const m = data.metrics || {};
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setVal('metric-total-books', m.total_books || 0);
+    setVal('metric-total-categories', m.total_categories || 0);
+    setVal('metric-low-stock', m.low_stock_count || 0);
+    setVal('metric-total-orders', m.total_orders || 0);
+    setVal('metric-total-revenue', `৳${parseFloat(m.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+
+    // Tab badges
+    setVal('admin-tab-book-count', (data.books || []).length);
+    setVal('admin-tab-order-count', (data.recent_orders || []).length);
+    setVal('admin-tab-lowstock-count', (data.low_stock_items || []).length);
+
+    // Populate category dropdown in admin toolbar if empty
+    const catSelect = document.getElementById('admin-books-category-select');
+    if (catSelect && catSelect.children.length <= 1 && this.categories) {
+      let optHtml = '<option value="">All Categories</option>';
+      this.categories.forEach(c => {
+        optHtml += `<option value="${c.category_id}">${escapeHtml(c.name)}</option>`;
+      });
+      catSelect.innerHTML = optHtml;
+    }
+
+    // Snapshot: Overview Low Stock Table (Urgent)
+    const ovStockTbody = document.getElementById('overview-lowstock-tbody');
+    if (ovStockTbody) {
+      const lowItems = data.low_stock_items || [];
+      if (lowItems.length === 0) {
+        ovStockTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #10B981; padding: 16px;">✓ All inventory levels healthy (&gt; 20 units)</td></tr>';
+      } else {
+        ovStockTbody.innerHTML = lowItems.slice(0, 5).map(b => `
+          <tr>
+            <td><strong>${escapeHtml(b.title)}</strong></td>
+            <td><span class="book-category-tag" style="margin: 0;">${escapeHtml(b.category_name)}</span></td>
+            <td><span class="status-badge status-low">🔥 ${b.stock_qty} left</span></td>
+            <td><button class="btn-table-action btn-restock" onclick="App.quickRestock(${b.book_id}, '${escapeQuote(b.title)}', ${b.stock_qty})">+ Restock</button></td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    // Snapshot: Overview Recent Orders Table
+    const ovOrdersTbody = document.getElementById('overview-orders-tbody');
+    if (ovOrdersTbody) {
+      const orders = data.recent_orders || [];
+      if (orders.length === 0) {
+        ovOrdersTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--ink-muted); padding: 16px;">No customer orders placed yet.</td></tr>';
+      } else {
+        ovOrdersTbody.innerHTML = orders.slice(0, 5).map(o => `
+          <tr>
+            <td><strong style="font-family: var(--font-mono); color: var(--burnt-orange);">${escapeHtml(o.order_number)}</strong></td>
+            <td>${escapeHtml(o.customer_name)}</td>
+            <td><strong style="font-family: var(--font-mono);">৳${parseFloat(o.total_amount).toFixed(2)}</strong></td>
+            <td><span class="status-badge status-${(o.status || 'processing').toLowerCase()}">${escapeHtml(o.status)}</span></td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    // Panel 2: Full Books CRUD Table
+    this.renderAdminBooksTable(data.books || []);
+
+    // Panel 3: Full Orders Table
+    const ordersTbody = document.getElementById('admin-orders-tbody');
+    if (ordersTbody) {
+      const orders = data.recent_orders || [];
+      if (orders.length === 0) {
+        ordersTbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--ink-muted); padding: 24px;">No customer orders placed yet.</td></tr>';
+      } else {
+        ordersTbody.innerHTML = orders.map(o => `
+          <tr>
+            <td><strong style="font-family: var(--font-mono); color: var(--burnt-orange);">${escapeHtml(o.order_number)}</strong></td>
+            <td><strong>${escapeHtml(o.customer_name)}</strong></td>
+            <td>${escapeHtml(o.customer_phone || 'N/A')}</td>
+            <td>${escapeHtml(o.delivery_district || 'Dhaka')}</td>
+            <td>${o.items_count || 1} titles</td>
+            <td><strong style="font-family: var(--font-mono);">৳${parseFloat(o.total_amount).toFixed(2)}</strong></td>
+            <td><span class="pay-pill">${escapeHtml(o.payment_method)}</span></td>
+            <td><span class="status-badge status-${(o.status || 'processing').toLowerCase()}">${escapeHtml(o.status)}</span></td>
+            <td style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(o.created_at || '')}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    // Panel 4: Full Low Stock Table
+    const stockTbody = document.getElementById('admin-stock-tbody');
+    if (stockTbody) {
+      const lowItems = data.low_stock_items || [];
+      if (lowItems.length === 0) {
+        stockTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #10B981; padding: 24px;">✓ Inventory is fully stocked across all catalog items!</td></tr>';
+      } else {
+        stockTbody.innerHTML = lowItems.map(b => `
+          <tr>
+            <td><img src="${b.cover_image || ''}" class="admin-thumb" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" /></td>
+            <td>
+              <strong>${escapeHtml(b.title)}</strong>
+              <div style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(b.authors || 'Unknown')} &bull; ISBN: ${escapeHtml(b.isbn)}</div>
+            </td>
+            <td><span class="book-category-tag">${escapeHtml(b.category_name)}</span></td>
+            <td><strong style="color: var(--danger); font-family: var(--font-mono); font-size: 0.95rem;">${b.stock_qty}</strong> units</td>
+            <td><span class="status-badge status-low">Restock Recommended</span></td>
+            <td>
+              <button class="btn-table-action btn-restock" onclick="App.quickRestock(${b.book_id}, '${escapeQuote(b.title)}', ${b.stock_qty})">+ Restock</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+    }
+  },
+
+  renderAdminBooksTable(books) {
+    const tbody = document.getElementById('admin-books-tbody');
+    if (!tbody) return;
+
+    if (!books || books.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--ink-muted); padding: 24px;">No books match your admin search filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = books.map(b => {
+      const discount = parseFloat(b.discount_pct || 0);
+      const isLowStock = b.stock_qty <= 20;
+      return `
+        <tr>
+          <td><img src="${b.cover_image || ''}" class="admin-thumb" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" /></td>
+          <td>
+            <strong>${escapeHtml(b.title)}</strong>
+            <div style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(b.authors || 'Unknown')} &bull; ISBN: ${escapeHtml(b.isbn)}</div>
+          </td>
+          <td><span class="book-category-tag">${escapeHtml(b.category_name)}</span></td>
+          <td>
+            <strong style="font-family: var(--font-mono);">৳${parseFloat(b.price).toFixed(2)}</strong>
+            ${discount > 0 ? `<div style="font-size: 0.72rem; color: var(--burnt-orange); font-weight: 700;">-${discount}% OFF</div>` : ''}
+          </td>
+          <td>
+            <span class="status-badge ${isLowStock ? 'status-low' : 'status-ok'}">
+              ${b.stock_qty} in stock
+            </span>
+          </td>
+          <td>${b.publication_year || 'N/A'}</td>
+          <td>
+            <div class="action-btn-group">
+              <button class="btn-table-action btn-edit" title="Edit book details" onclick="App.openEditBookModal(${b.book_id})">Edit</button>
+              <button class="btn-table-action btn-delete" title="Soft-delete from database" onclick="App.deleteBook(${b.book_id}, '${escapeQuote(b.title)}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  filterAdminBooks() {
+    if (!this.adminData || !this.adminData.books) return;
+    const term = (document.getElementById('admin-books-filter-input')?.value || '').toLowerCase().trim();
+    const catId = document.getElementById('admin-books-category-select')?.value;
+
+    const filtered = this.adminData.books.filter(b => {
+      const matchesTerm = !term ||
+        (b.title && b.title.toLowerCase().includes(term)) ||
+        (b.authors && b.authors.toLowerCase().includes(term)) ||
+        (b.isbn && b.isbn.toLowerCase().includes(term));
+      const matchesCat = !catId || String(b.category_id) === String(catId);
+      return matchesTerm && matchesCat;
+    });
+
+    this.renderAdminBooksTable(filtered);
+  },
+
+  async loadPublishersAndAuthors() {
+    if (!this.publishers) {
+      try {
+        const res = await fetch('/api/publishers');
+        const data = await res.json();
+        this.publishers = data.publishers || [];
+      } catch (e) {
+        this.publishers = [];
+      }
+    }
+
+    if (!this.authors) {
+      try {
+        const res = await fetch('/api/authors');
+        const data = await res.json();
+        this.authors = data.authors || [];
+      } catch (e) {
+        this.authors = [];
+      }
+    }
+
+    const pubSelect = document.getElementById('crud-book-publisher');
+    if (pubSelect && this.publishers.length > 0) {
+      pubSelect.innerHTML = this.publishers.map(p => `<option value="${p.publisher_id}">${escapeHtml(p.name)}</option>`).join('');
+    }
+
+    const authSelect = document.getElementById('crud-book-author');
+    if (authSelect && this.authors.length > 0) {
+      authSelect.innerHTML = this.authors.map(a => `<option value="${a.author_id}">${escapeHtml(a.name)}</option>`).join('');
+    }
+
+    const catSelect = document.getElementById('crud-book-category');
+    if (catSelect && this.categories && this.categories.length > 0) {
+      catSelect.innerHTML = this.categories.map(c => `<option value="${c.category_id}">${escapeHtml(c.name)}</option>`).join('');
+    }
+  },
+
+  async openCreateBookModal() {
+    await this.loadPublishersAndAuthors();
+    document.getElementById('book-crud-form').reset();
+    document.getElementById('crud-book-id').value = '';
+    document.getElementById('crud-modal-mode-badge').textContent = 'CREATE RECORD';
+    document.getElementById('crud-modal-title').textContent = 'Add New Book to Catalog';
+    document.getElementById('crud-submit-btn').textContent = 'Commit Book to Database (INSERT)';
+
+    document.getElementById('crud-book-year').value = 2024;
+    document.getElementById('crud-book-stock').value = 25;
+    document.getElementById('crud-book-pages').value = 420;
+    document.getElementById('crud-book-discount').value = 0;
+
+    const modal = document.getElementById('book-crud-modal');
     if (modal) modal.classList.add('active');
   },
 
-  async handleAddBookSubmit(e) {
+  async openEditBookModal(bookId) {
+    await this.loadPublishersAndAuthors();
+    try {
+      const res = await fetch(`/api/books/${bookId}`);
+      const data = await res.json();
+      if (!res.ok || !data.book) {
+        showToast('Could not load book details for editing.', 'error');
+        return;
+      }
+      const b = data.book;
+      document.getElementById('crud-book-id').value = b.book_id;
+      document.getElementById('crud-modal-mode-badge').textContent = 'UPDATE RECORD';
+      document.getElementById('crud-modal-title').textContent = `Edit Book #${b.book_id}`;
+      document.getElementById('crud-submit-btn').textContent = 'Save Changes to Database (UPDATE)';
+
+      document.getElementById('crud-book-isbn').value = b.isbn || '';
+      document.getElementById('crud-book-title').value = b.title || '';
+      document.getElementById('crud-book-category').value = b.category_id || 1;
+      document.getElementById('crud-book-publisher').value = b.publisher_id || 1;
+      
+      const authorSelect = document.getElementById('crud-book-author');
+      if (authorSelect && b.authors_list && b.authors_list.length > 0) {
+        authorSelect.value = b.authors_list[0].author_id;
+      }
+
+      document.getElementById('crud-book-price').value = b.price || 0;
+      document.getElementById('crud-book-discount').value = b.discount_pct || 0;
+      document.getElementById('crud-book-stock').value = b.stock_qty || 0;
+      document.getElementById('crud-book-year').value = b.publication_year || 2024;
+      document.getElementById('crud-book-pages').value = b.page_count || 300;
+      document.getElementById('crud-book-cover').value = b.cover_image || '';
+      document.getElementById('crud-book-desc').value = b.description || '';
+
+      const modal = document.getElementById('book-crud-modal');
+      if (modal) modal.classList.add('active');
+    } catch (err) {
+      showToast('Error opening edit book modal.', 'error');
+    }
+  },
+
+  closeBookCrudModal() {
+    const modal = document.getElementById('book-crud-modal');
+    if (modal) modal.classList.remove('active');
+  },
+
+  async handleBookCrudSubmit(e) {
     e.preventDefault();
+    const bookId = document.getElementById('crud-book-id').value;
+    const isUpdate = Boolean(bookId);
+
     const data = {
-      isbn: document.getElementById('add-book-isbn').value.trim(),
-      title: document.getElementById('add-book-title').value.trim(),
-      category_id: parseInt(document.getElementById('add-book-category').value),
-      price: parseFloat(document.getElementById('add-book-price').value),
-      discount_pct: parseFloat(document.getElementById('add-book-discount').value || 0),
-      stock_qty: parseInt(document.getElementById('add-book-stock').value || 10),
-      publication_year: parseInt(document.getElementById('add-book-year').value || 2024),
-      page_count: parseInt(document.getElementById('add-book-pages').value || 300),
-      description: document.getElementById('add-book-desc').value.trim(),
-      cover_image: document.getElementById('add-book-cover').value.trim() || 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg'
+      isbn: document.getElementById('crud-book-isbn').value.trim(),
+      title: document.getElementById('crud-book-title').value.trim(),
+      category_id: parseInt(document.getElementById('crud-book-category').value),
+      publisher_id: parseInt(document.getElementById('crud-book-publisher').value || 1),
+      author_id: parseInt(document.getElementById('crud-book-author').value || 1),
+      price: parseFloat(document.getElementById('crud-book-price').value),
+      discount_pct: parseFloat(document.getElementById('crud-book-discount').value || 0),
+      stock_qty: parseInt(document.getElementById('crud-book-stock').value || 10),
+      publication_year: parseInt(document.getElementById('crud-book-year').value || 2024),
+      page_count: parseInt(document.getElementById('crud-book-pages').value || 300),
+      description: document.getElementById('crud-book-desc').value.trim(),
+      cover_image: document.getElementById('crud-book-cover').value.trim() || 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg'
     };
 
+    const url = isUpdate ? `/api/books/${bookId}/update` : '/api/books';
+    const method = 'POST';
+
     try {
-      const res = await fetch('/api/books', {
-        method: 'POST',
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       const result = await res.json();
       if (res.ok && result.success) {
-        showToast('Book inserted into catalog successfully!', 'success');
-        document.getElementById('add-book-form').reset();
-        document.getElementById('add-book-modal').classList.remove('active');
+        showToast(isUpdate ? 'Book updated successfully in database!' : 'Book inserted into catalog with audit logging!', 'success');
+        this.closeBookCrudModal();
         SearchEngine.executeSearch();
         this.loadCategories();
+        const adminModal = document.getElementById('admin-dashboard-modal');
+        if (adminModal && adminModal.classList.contains('active')) {
+          this.openAdminDashboard();
+        }
       } else {
-        showToast(result.message || 'Error inserting book.', 'error');
+        showToast(result.message || 'Error saving book record.', 'error');
       }
     } catch (err) {
-      showToast('Network error inserting book.', 'error');
+      showToast('Network error saving book record.', 'error');
+    }
+  },
+
+  async deleteBook(bookId, title) {
+    if (!confirm(`Are you sure you want to soft-delete "${title}" from the catalog?\nThis preserves relational order history while removing it from public view.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/books/${bookId}`, {
+        method: 'DELETE'
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        showToast(`"${title}" has been deleted from catalog.`, 'success');
+        SearchEngine.executeSearch();
+        this.loadCategories();
+        const adminModal = document.getElementById('admin-dashboard-modal');
+        if (adminModal && adminModal.classList.contains('active')) {
+          this.openAdminDashboard();
+        }
+      } else {
+        showToast(result.message || 'Error deleting book.', 'error');
+      }
+    } catch (err) {
+      showToast('Network error deleting book.', 'error');
+    }
+  },
+
+  async quickRestock(bookId, title, currentStock) {
+    const qtyStr = prompt(`Restock "${title}"\nCurrent stock: ${currentStock} units.\nEnter new total stock units:`, currentStock + 25);
+    if (!qtyStr) return;
+    const newStock = parseInt(qtyStr);
+    if (isNaN(newStock) || newStock < 0) {
+      alert('Please enter a valid non-negative integer.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/books/${bookId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock_qty: newStock })
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        showToast(`Stock updated to ${newStock} units for "${title}".`, 'success');
+        this.openAdminDashboard();
+        SearchEngine.executeSearch();
+      } else {
+        showToast(result.message || 'Error updating stock.', 'error');
+      }
+    } catch (err) {
+      showToast('Network error restocking book.', 'error');
     }
   }
 };

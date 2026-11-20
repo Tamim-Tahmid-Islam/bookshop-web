@@ -73,7 +73,18 @@
         <span class="count-badge" id="cart-count">0</span>
       </button>
 
-      <button id="add-book-nav-btn" class="auth-btn auth-btn-primary" style="display: none;">
+      <!-- Admin Dashboard Action Button -->
+      <button id="open-admin-btn" class="nav-action-pill nav-action-admin" title="Open Admin & DBMS Control Center" onclick="App.openAdminDashboard()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span>Admin Portal</span>
+      </button>
+
+      <button id="add-book-nav-btn" class="auth-btn auth-btn-primary" style="display: none;" onclick="App.openCreateBookModal()">
         <span>+ Add Book</span>
       </button>
 
@@ -120,12 +131,44 @@
         </ul>
       </div>
 
-      <!-- Section 2: Price Range Filter -->
+      <!-- Section 2: Publishing House Filter -->
+      <div class="filter-section">
+        <h4 class="filter-title">
+          <span>Publishing House</span>
+          <span style="font-size: 0.72rem; color: var(--burnt-orange); font-weight: 700;">FK</span>
+        </h4>
+        <select id="publisher-filter-select" class="form-select filter-select">
+          <option value="">All Publishers</option>
+        </select>
+      </div>
+
+      <!-- Section 3: Publication Era Filter -->
+      <div class="filter-section">
+        <h4 class="filter-title">
+          <span>Publication Era</span>
+          <span style="font-size: 0.72rem; color: var(--burnt-orange); font-weight: 700;">BETWEEN</span>
+        </h4>
+        <div class="era-pills-grid">
+          <button type="button" class="era-pill active" data-era="all">All Eras</button>
+          <button type="button" class="era-pill" data-era="classics">Classics (&lt;1900)</button>
+          <button type="button" class="era-pill" data-era="20th">1900–1999</button>
+          <button type="button" class="era-pill" data-era="modern">2000–2015</button>
+          <button type="button" class="era-pill" data-era="recent">2016–Now</button>
+        </div>
+      </div>
+
+      <!-- Section 4: Price Range Filter -->
       <div class="filter-section">
         <h4 class="filter-title">
           <span>Price Filter (BDT)</span>
           <span style="font-size: 0.72rem; color: var(--burnt-orange); font-weight: 700;">RANGE</span>
         </h4>
+        <div class="price-preset-chips">
+          <button type="button" class="price-chip" data-min="" data-max="500">&lt; ৳500</button>
+          <button type="button" class="price-chip" data-min="500" data-max="1000">৳500–1K</button>
+          <button type="button" class="price-chip" data-min="1000" data-max="2000">৳1K–2K</button>
+          <button type="button" class="price-chip" data-min="2000" data-max="">৳2K+</button>
+        </div>
         <div class="price-inputs">
           <div class="price-input-box">
             <span class="price-currency">৳</span>
@@ -140,7 +183,18 @@
         </div>
       </div>
 
-      <!-- Section 3: Star Rating Filter -->
+      <!-- Section 5: Special Offers / On Sale Toggle -->
+      <div class="filter-section">
+        <div class="toggle-wrapper">
+          <span style="font-size: 0.85rem; font-weight: 600; color: var(--ink-charcoal);">Discounted / On Sale Only</span>
+          <label class="switch">
+            <input type="checkbox" id="onsale-only-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 6: Star Rating Filter -->
       <div class="filter-section">
         <h4 class="filter-title">
           <span>Customer Reviews</span>
@@ -169,7 +223,7 @@
         </div>
       </div>
 
-      <!-- Section 4: Availability Toggle -->
+      <!-- Section 7: Availability Toggle -->
       <div class="filter-section">
         <h4 class="filter-title">
           <span>Inventory Availability</span>
@@ -206,8 +260,19 @@
             <option value="price_desc">Price: High to Low</option>
             <option value="rating_desc">Highest Customer Rating</option>
             <option value="year_desc">Publication Year (Newest)</option>
+            <option value="year_asc">Publication Year (Oldest)</option>
+            <option value="discount_desc">Biggest Discount (%)</option>
             <option value="title_asc">Title (A - Z)</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Active Filter Chips Bar -->
+      <div id="active-filters-bar" class="active-filters-bar" style="display: none;">
+        <div class="active-filters-inner">
+          <span class="active-filters-label">Active Filters:</span>
+          <div id="active-chips-container" class="active-chips-container"></div>
+          <button id="clear-all-chips-btn" class="clear-all-chips-btn" onclick="SearchEngine.resetFilters()">Clear All ✕</button>
         </div>
       </div>
 
@@ -216,12 +281,114 @@
         <!-- Rendered dynamically via search.js -->
       </div>
 
-      <!-- Pagination -->
-      <div id="pagination-container" class="pagination">
-        <!-- Rendered dynamically via search.js -->
+      <!-- Enhanced Pagination -->
+      <div class="pagination-wrapper">
+        <div class="pagination-info" id="pagination-info">Showing 1–12 of 27 books</div>
+        <div id="pagination-container" class="pagination">
+          <!-- Rendered dynamically via search.js -->
+        </div>
+        <div class="pagination-page-size">
+          <label for="page-size-select">Per page:</label>
+          <select id="page-size-select" class="page-size-select" onchange="SearchEngine.setPageSize(this.value)">
+            <option value="8">8</option>
+            <option value="12" selected>12</option>
+            <option value="24">24</option>
+          </select>
+        </div>
       </div>
     </main>
   </div>
+
+  <!-- =========================================================================
+       Footer & Architectural Specifications (About PageVault)
+       ========================================================================= -->
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-grid">
+        <!-- Column 1: Brand & Philosophy -->
+        <div class="footer-col brand-col">
+          <div class="footer-brand">
+            <img src="/static/img/logo.svg" alt="PageVault Logo" class="footer-logo" />
+          </div>
+          <p class="footer-tagline">
+            An industrial-grade online bookshop &amp; catalog management engine built on relational MySQL architecture. Designed with 3NF normalization, atomic ACID transactions, and sub-millisecond B-tree indexing.
+          </p>
+          <div class="footer-status-pill">
+            <span class="pulse-dot"></span>
+            <span>MySQL 8.0 Engine Online &bull; B-Tree Indexing Active</span>
+          </div>
+        </div>
+
+        <!-- Column 2: Relational DBMS Architecture -->
+        <div class="footer-col">
+          <h4 class="footer-heading">DBMS Relational Architecture</h4>
+          <ul class="footer-spec-list">
+            <li>
+              <strong>Normalization:</strong> Third Normal Form (3NF) schema decomposition
+            </li>
+            <li>
+              <strong>Transaction Safety:</strong> InnoDB Atomic ACID transactions with automatic rollback
+            </li>
+            <li>
+              <strong>Indexing Strategy:</strong> Clustered B-Tree primary keys &amp; composite indexes
+            </li>
+            <li>
+              <strong>Query Execution:</strong> Multi-predicate relational algebra &amp; dynamic projections
+            </li>
+            <li>
+              <strong>Audit Logging:</strong> Trigger-backed catalog modifications &amp; ledger records
+            </li>
+          </ul>
+        </div>
+
+        <!-- Column 3: Curated Collections -->
+        <div class="footer-col">
+          <h4 class="footer-heading">Curated Disciplines</h4>
+          <ul class="footer-links-list">
+            <li><a href="javascript:void(0)" onclick="SearchEngine.selectCategory(1)">Computer Science &amp; Software</a></li>
+            <li><a href="javascript:void(0)" onclick="SearchEngine.selectCategory(2)">Database &amp; Systems Architecture</a></li>
+            <li><a href="javascript:void(0)" onclick="SearchEngine.selectCategory(4)">Classical Literature &amp; Poetry</a></li>
+            <li><a href="javascript:void(0)" onclick="SearchEngine.selectCategory(6)">Self-Help &amp; Personal Mastery</a></li>
+            <li><a href="javascript:void(0)" onclick="SearchEngine.selectCategory(7)">Fantasy, Adventure &amp; Fiction</a></li>
+          </ul>
+        </div>
+
+        <!-- Column 4: Logistics & Support -->
+        <div class="footer-col">
+          <h4 class="footer-heading">Logistics &amp; Inquiries</h4>
+          <p class="footer-text">
+            Express nationwide doorstep delivery across all 64 districts in Bangladesh:
+          </p>
+          <div class="footer-delivery-rates">
+            <div class="rate-badge"><strong>৳60</strong> Inside Dhaka (24h)</div>
+            <div class="rate-badge"><strong>৳120</strong> Outside Dhaka (48h)</div>
+          </div>
+          <div class="footer-payment-icons">
+            <span class="pay-pill pay-bkash">bKash</span>
+            <span class="pay-pill pay-nagad">Nagad</span>
+            <span class="pay-pill pay-cod">Cash on Delivery</span>
+            <span class="pay-pill pay-card">Cards</span>
+          </div>
+          <div class="footer-contact-link">
+            <span>Course Inquiries &amp; Feedback:</span>
+            <a href="mailto:tamimtahmid270@gmail.com">tamimtahmid270@gmail.com</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Bottom Bar -->
+      <div class="footer-bottom">
+        <p>&copy; 2026 <strong>PageVault</strong>. Developed by <strong>Tamim Tahmid</strong> for Database Management Systems Course Project.</p>
+        <div class="footer-bottom-links">
+          <a href="javascript:void(0)" onclick="App.openAdminDashboard()">Admin Control Center</a>
+          <span class="sep">&bull;</span>
+          <a href="mailto:tamimtahmid270@gmail.com">Contact Developer</a>
+          <span class="sep">&bull;</span>
+          <a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Back to Top &uarr;</a>
+        </div>
+      </div>
+    </div>
+  </footer>
 
   <!-- =========================================================================
        3. Auth Modal (Login, Registration, and FORGOT PASSWORD workflow)
@@ -358,69 +525,289 @@
   </div>
 
   <!-- =========================================================================
-       5. Add Book Modal (Admin / Librarian Product Management)
+       5. Admin Dashboard Modal (Operations & Management Console)
        ========================================================================= -->
-  <div id="add-book-modal" class="modal-overlay">
-    <div class="modal-container" style="max-width: 640px;">
+  <div id="admin-dashboard-modal" class="modal-overlay">
+    <div class="modal-container admin-dashboard-container">
+      <div class="modal-header admin-modal-header">
+        <div>
+          <span class="admin-badge-pill">DBMS MANAGEMENT CONSOLE</span>
+          <h3 class="modal-title" style="margin-top: 6px;">Admin Operations &amp; Catalog Dashboard</h3>
+          <p style="font-size: 0.8rem; color: var(--ink-muted); margin: 0;">Live MySQL 8.0 catalog, real-time sales metrics &amp; inventory ledger.</p>
+        </div>
+        <button class="modal-close-btn" onclick="App.closeAdminDashboard()">&times;</button>
+      </div>
+
+      <!-- Admin Tab Navigation -->
+      <div class="admin-tab-nav">
+        <button class="admin-tab-btn active" data-tab="overview" onclick="App.switchAdminTab('overview')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Overview &amp; KPIs</span>
+        </button>
+        <button class="admin-tab-btn" data-tab="books" onclick="App.switchAdminTab('books')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Catalog CRUD (<span id="admin-tab-book-count">0</span>)</span>
+        </button>
+        <button class="admin-tab-btn" data-tab="orders" onclick="App.switchAdminTab('orders')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <span>Customer Orders (<span id="admin-tab-order-count">0</span>)</span>
+        </button>
+        <button class="admin-tab-btn" data-tab="stock" onclick="App.switchAdminTab('stock')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Low Stock Alerts (<span id="admin-tab-lowstock-count" class="badge-count-alert">0</span>)</span>
+        </button>
+      </div>
+
+      <div class="admin-modal-body">
+        <!-- Panel 1: Overview & Analytics -->
+        <div id="admin-panel-overview" class="admin-panel active">
+          <!-- Metric KPI Cards -->
+          <div class="admin-metrics-grid">
+            <div class="admin-metric-card">
+              <div class="metric-icon">📚</div>
+              <div class="metric-label">Total Books in Catalog</div>
+              <div class="metric-value" id="metric-total-books">0</div>
+              <div class="metric-sub">Across active categories</div>
+            </div>
+            <div class="admin-metric-card">
+              <div class="metric-icon">🏷️</div>
+              <div class="metric-label">Disciplines &amp; Categories</div>
+              <div class="metric-value" id="metric-total-categories">0</div>
+              <div class="metric-sub">Relational foreign keys</div>
+            </div>
+            <div class="admin-metric-card alert-card">
+              <div class="metric-icon">⚠️</div>
+              <div class="metric-label">Low Stock Warnings</div>
+              <div class="metric-value" id="metric-low-stock">0</div>
+              <div class="metric-sub">Units &le; 20 threshold</div>
+            </div>
+            <div class="admin-metric-card">
+              <div class="metric-icon">📦</div>
+              <div class="metric-label">Total Customer Orders</div>
+              <div class="metric-value" id="metric-total-orders">0</div>
+              <div class="metric-sub">ACID committed</div>
+            </div>
+            <div class="admin-metric-card highlight-card">
+              <div class="metric-icon">৳</div>
+              <div class="metric-label">Gross Revenue</div>
+              <div class="metric-value" id="metric-total-revenue">৳0.00</div>
+              <div class="metric-sub">Real-time ledger total</div>
+            </div>
+          </div>
+
+          <!-- Dual snapshot tables -->
+          <div class="admin-snapshots-grid">
+            <!-- Left: Urgent Low Stock -->
+            <div class="admin-snapshot-box">
+              <div class="snapshot-header">
+                <h4>Urgent Inventory Alerts (Stock &le; 20)</h4>
+                <button class="btn-text-action" onclick="App.switchAdminTab('stock')">View All &rarr;</button>
+              </div>
+              <div class="snapshot-table-wrapper">
+                <table class="admin-data-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Category</th>
+                      <th>Stock</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-lowstock-tbody">
+                    <!-- Dynamic -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right: Recent Orders -->
+            <div class="admin-snapshot-box">
+              <div class="snapshot-header">
+                <h4>Recent Customer Orders</h4>
+                <button class="btn-text-action" onclick="App.switchAdminTab('orders')">View All &rarr;</button>
+              </div>
+              <div class="snapshot-table-wrapper">
+                <table class="admin-data-table">
+                  <thead>
+                    <tr>
+                      <th>Order Reference</th>
+                      <th>Customer</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-orders-tbody">
+                    <!-- Dynamic -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Books Catalog (CRUD) -->
+        <div id="admin-panel-books" class="admin-panel">
+          <div class="admin-toolbar">
+            <div class="admin-toolbar-left">
+              <input type="text" id="admin-books-filter-input" class="admin-filter-input" placeholder="Filter by title, author, or ISBN..." oninput="App.filterAdminBooks()" />
+              <select id="admin-books-category-select" class="admin-filter-select" onchange="App.filterAdminBooks()">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+            <button class="auth-btn auth-btn-primary" onclick="App.openCreateBookModal()">
+              <span>+ Add New Book</span>
+            </button>
+          </div>
+          <div class="admin-table-wrapper">
+            <table class="admin-data-table admin-books-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">Cover</th>
+                  <th>Title &amp; Authors</th>
+                  <th>Category</th>
+                  <th>Price (BDT)</th>
+                  <th>Stock</th>
+                  <th>Year</th>
+                  <th style="text-align: right;">CRUD Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-books-tbody">
+                <!-- Dynamic -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Panel 3: Customer Orders -->
+        <div id="admin-panel-orders" class="admin-panel">
+          <div class="admin-table-wrapper">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Order Reference</th>
+                  <th>Customer Name</th>
+                  <th>Phone</th>
+                  <th>District</th>
+                  <th>Items</th>
+                  <th>Total Amount</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                  <th>Date Placed</th>
+                </tr>
+              </thead>
+              <tbody id="admin-orders-tbody">
+                <!-- Dynamic -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Panel 4: Low Stock Alerts -->
+        <div id="admin-panel-stock" class="admin-panel">
+          <div class="admin-table-wrapper">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">Cover</th>
+                  <th>Title &amp; Authors</th>
+                  <th>Category</th>
+                  <th>Current Stock</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-stock-tbody">
+                <!-- Dynamic -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       6. Unified Book CRUD Modal (Create & Update)
+       ========================================================================= -->
+  <div id="book-crud-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 680px;">
       <div class="modal-header">
-        <h3 class="modal-title">Catalog Management: Add New Book</h3>
-        <button class="modal-close-btn">&times;</button>
+        <div>
+          <span class="admin-badge-pill" id="crud-modal-mode-badge">CREATE RECORD</span>
+          <h3 class="modal-title" id="crud-modal-title" style="margin-top: 4px;">Add New Book to Catalog</h3>
+        </div>
+        <button class="modal-close-btn" onclick="App.closeBookCrudModal()">&times;</button>
       </div>
       <div class="modal-body">
-        <form id="add-book-form">
+        <form id="book-crud-form">
+          <input type="hidden" id="crud-book-id" value="" />
+
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
             <div class="form-group">
-              <label class="form-label">ISBN-13 (Unique Key)</label>
-              <input type="text" id="add-book-isbn" class="form-input" placeholder="978-0123456789" required />
+              <label class="form-label">ISBN-13 (Unique B-Tree Key)</label>
+              <input type="text" id="crud-book-isbn" class="form-input" placeholder="978-0123456789" required />
             </div>
             <div class="form-group">
-              <label class="form-label">Category (Foreign Key)</label>
-              <select id="add-book-category" class="form-select" required></select>
+              <label class="form-label">Discipline / Category (Foreign Key)</label>
+              <select id="crud-book-category" class="form-select" required></select>
             </div>
           </div>
 
           <div class="form-group">
             <label class="form-label">Book Title</label>
-            <input type="text" id="add-book-title" class="form-input" placeholder="e.g. Relational Theory for Computer Scientists" required />
+            <input type="text" id="crud-book-title" class="form-input" placeholder="e.g. Relational Database Systems &amp; Indexing" required />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">Publishing House (Foreign Key)</label>
+              <select id="crud-book-publisher" class="form-select" required></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Primary Author (Foreign Key)</label>
+              <select id="crud-book-author" class="form-select" required></select>
+            </div>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
             <div class="form-group">
               <label class="form-label">Price (BDT ৳)</label>
-              <input type="number" id="add-book-price" class="form-input" step="1" min="0" placeholder="850" required />
+              <input type="number" id="crud-book-price" class="form-input" step="1" min="0" placeholder="850" required />
             </div>
             <div class="form-group">
               <label class="form-label">Discount (%)</label>
-              <input type="number" id="add-book-discount" class="form-input" step="1" min="0" max="100" value="0" />
+              <input type="number" id="crud-book-discount" class="form-input" step="1" min="0" max="100" value="0" />
             </div>
             <div class="form-group">
               <label class="form-label">Stock Units</label>
-              <input type="number" id="add-book-stock" class="form-input" min="0" value="25" required />
+              <input type="number" id="crud-book-stock" class="form-input" min="0" value="25" required />
             </div>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
             <div class="form-group">
               <label class="form-label">Publication Year</label>
-              <input type="number" id="add-book-year" class="form-input" min="1900" max="2030" value="2024" />
+              <input type="number" id="crud-book-year" class="form-input" min="1500" max="2030" value="2024" />
             </div>
             <div class="form-group">
               <label class="form-label">Page Count</label>
-              <input type="number" id="add-book-pages" class="form-input" min="1" value="450" />
+              <input type="number" id="crud-book-pages" class="form-input" min="1" value="450" />
             </div>
           </div>
 
           <div class="form-group">
             <label class="form-label">Cover Image URL</label>
-            <input type="url" id="add-book-cover" class="form-input" placeholder="https://images.unsplash.com/..." />
+            <input type="url" id="crud-book-cover" class="form-input" placeholder="https://images-na.ssl-images-amazon.com/..." />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Book Description / Abstract</label>
-            <textarea id="add-book-desc" class="form-textarea" rows="3" placeholder="Comprehensive theoretical overview of relational models and indexing structures..."></textarea>
+            <label class="form-label">Book Synopsis / Abstract</label>
+            <textarea id="crud-book-desc" class="form-textarea" rows="3" placeholder="Enter abstract, topics covered, or summary..."></textarea>
           </div>
 
-          <button type="submit" class="form-btn">Execute SQL INSERT with Audit Logging</button>
+          <button type="submit" id="crud-submit-btn" class="form-btn">
+            Commit Book to Database (INSERT)
+          </button>
         </form>
       </div>
     </div>
