@@ -221,15 +221,14 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                     self._send_json(200, {
                         'success': True,
                         'email': res['email'],
-                        'message': 'We have sent you a verification code to your email.'
+                        'message': 'We have sent you a code to verify.'
                     })
                 else:
                     err_msg = delivery.get('message', 'Email dispatch error.')
-                    self._send_json(200, {
-                        'success': True,
+                    self._send_json(500, {
+                        'success': False,
                         'email': res['email'],
-                        'warning': True,
-                        'message': f"Verification code generated! ({err_msg})"
+                        'message': f"Failed to send email: {err_msg}"
                     })
             else:
                 self._send_json(404, {'success': False, 'message': res['message']})

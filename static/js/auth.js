@@ -173,6 +173,22 @@ const Auth = {
 
     const activePanel = document.getElementById(`auth-panel-${tabName}`);
     if (activePanel) activePanel.style.display = 'block';
+
+    // Always reset Forgot Password to Step 1 whenever opened
+    if (tabName === 'forgot') {
+      const step1 = document.getElementById('forgot-step-1');
+      const step2 = document.getElementById('forgot-step-2');
+      if (step1) step1.style.display = 'block';
+      if (step2) step2.style.display = 'none';
+      const emailField = document.getElementById('forgot-email');
+      if (emailField) emailField.value = '';
+      const tokenInput = document.getElementById('reset-token-input');
+      if (tokenInput) tokenInput.value = '';
+      const pw1 = document.getElementById('reset-new-password');
+      if (pw1) pw1.value = '';
+      const pw2 = document.getElementById('reset-confirm-password');
+      if (pw2) pw2.value = '';
+    }
   },
 
   async handleLogin(e) {
