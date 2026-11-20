@@ -6,7 +6,7 @@ Supports both direct MySQL Server connection and embedded fallback.
 import os
 
 # Server configuration
-SERVER_HOST = '127.0.0.1'
+SERVER_HOST = os.environ.get('HOST', '0.0.0.0')
 SERVER_PORT = int(os.environ.get('PORT', 8080))
 
 # MySQL Database configuration
