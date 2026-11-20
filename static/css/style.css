@@ -797,7 +797,7 @@ input:checked + .slider:before {
   z-index: 2;
 }
 
-.book-category-tag {
+.book-cover-container .book-category-tag {
   position: absolute;
   bottom: 12px;
   left: 12px;
@@ -810,6 +810,20 @@ input:checked + .slider:before {
   border-radius: var(--radius-pill);
   letter-spacing: 0.02em;
   z-index: 2;
+}
+
+.admin-data-table .book-category-tag {
+  position: static;
+  display: inline-block;
+  background: var(--cream-surface);
+  color: var(--ink-charcoal);
+  border: 1px solid var(--cream-border);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  letter-spacing: normal;
+  z-index: auto;
 }
 
 .book-info {
