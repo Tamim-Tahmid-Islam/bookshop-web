@@ -761,7 +761,7 @@ const App = {
           <td>
             <div class="action-btn-group">
               <button class="btn-table-action btn-edit" title="Edit book details" onclick="App.openEditBookModal(${b.book_id})">Edit</button>
-              <button class="btn-table-action btn-delete" title="Soft-delete from database" onclick="App.deleteBook(${b.book_id}, '${escapeQuote(b.title)}')">Delete</button>
+              <button class="btn-table-action btn-delete" title="Remove from catalog" onclick="App.deleteBook(${b.book_id}, '${escapeQuote(b.title)}')">Delete</button>
             </div>
           </td>
         </tr>
@@ -827,9 +827,9 @@ const App = {
     await this.loadPublishersAndAuthors();
     document.getElementById('book-crud-form').reset();
     document.getElementById('crud-book-id').value = '';
-    document.getElementById('crud-modal-mode-badge').textContent = 'CREATE RECORD';
+    document.getElementById('crud-modal-mode-badge').textContent = 'NEW BOOK';
     document.getElementById('crud-modal-title').textContent = 'Add New Book to Catalog';
-    document.getElementById('crud-submit-btn').textContent = 'Commit Book to Database (INSERT)';
+    document.getElementById('crud-submit-btn').textContent = 'Save Book to Catalog';
 
     document.getElementById('crud-book-year').value = 2024;
     document.getElementById('crud-book-stock').value = 25;
@@ -851,9 +851,9 @@ const App = {
       }
       const b = data.book;
       document.getElementById('crud-book-id').value = b.book_id;
-      document.getElementById('crud-modal-mode-badge').textContent = 'UPDATE RECORD';
+      document.getElementById('crud-modal-mode-badge').textContent = 'EDIT BOOK';
       document.getElementById('crud-modal-title').textContent = `Edit Book #${b.book_id}`;
-      document.getElementById('crud-submit-btn').textContent = 'Save Changes to Database (UPDATE)';
+      document.getElementById('crud-submit-btn').textContent = 'Save Changes';
 
       document.getElementById('crud-book-isbn').value = b.isbn || '';
       document.getElementById('crud-book-title').value = b.title || '';
@@ -916,7 +916,7 @@ const App = {
       });
       const result = await res.json();
       if (res.ok && result.success) {
-        showToast(isUpdate ? 'Book updated successfully in database!' : 'Book inserted into catalog with audit logging!', 'success');
+        showToast(isUpdate ? 'Book updated successfully!' : 'Book added to catalog successfully!', 'success');
         this.closeBookCrudModal();
         SearchEngine.executeSearch();
         this.loadCategories();
@@ -933,7 +933,7 @@ const App = {
   },
 
   async deleteBook(bookId, title) {
-    if (!confirm(`Are you sure you want to soft-delete "${title}" from the catalog?\nThis preserves relational order history while removing it from public view.`)) {
+    if (!confirm(`Are you sure you want to remove "${title}" from the catalog?`)) {
       return;
     }
 

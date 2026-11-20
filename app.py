@@ -284,7 +284,6 @@ def run(host=config.SERVER_HOST, port=config.SERVER_PORT):
     with socketserver.TCPServer(server_address, PageVaultRequestHandler) as httpd:
         print("=" * 65)
         print("  📚 PageVault - Online Bookshop & Book Management System")
-        print("  🎓 DBMS MySQL Course Project Edition")
         print(f"  🚀 Server running at: http://{host}:{port}/")
         print(f"  💾 Database Mode: {db.mode}")
         print("=" * 65)
