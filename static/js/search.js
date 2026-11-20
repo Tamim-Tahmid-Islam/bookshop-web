@@ -539,12 +539,15 @@ const SearchEngine = {
       const authors = book.authors || 'Unknown Author';
       const isWishlisted = wishlist.includes(book.book_id);
 
-      // Urgency badges
+      // Urgency & stock badges
       let secondaryBadge = '';
-      if (rating >= 4.8) {
-        secondaryBadge = '<span class="book-secondary-badge badge-bestseller">⭐ Bestseller</span>';
-      } else if (book.stock_qty <= 20 && book.stock_qty > 0) {
+      const isOutOfStock = book.stock_qty <= 0;
+      if (isOutOfStock) {
+        secondaryBadge = '<span class="book-secondary-badge badge-outstock" style="background: #DC2626; color: white;">Sold Out</span>';
+      } else if (book.stock_qty <= 20) {
         secondaryBadge = `<span class="book-secondary-badge badge-lowstock">🔥 Only ${book.stock_qty} Left</span>`;
+      } else if (rating >= 4.8) {
+        secondaryBadge = '<span class="book-secondary-badge badge-bestseller">⭐ Bestseller</span>';
       } else if (book.publication_year >= 2020) {
         secondaryBadge = '<span class="book-secondary-badge badge-new">🌱 New</span>';
       }
@@ -585,7 +588,11 @@ const SearchEngine = {
             </div>
             <div class="book-card-actions">
               <button class="btn-details" onclick="App.openBookModal(${book.book_id})">View Details</button>
-              <button class="btn-buy" onclick="App.addToCart(${book.book_id}, '${escapeQuote(book.title)}', ${effectivePrice}, '${escapeQuote(book.cover_image || '')}')">Add to Cart</button>
+              ${isOutOfStock ? `
+                <button class="btn-buy" disabled style="opacity: 0.5; cursor: not-allowed; background: var(--ink-faint);" title="Currently out of stock">Sold Out</button>
+              ` : `
+                <button class="btn-buy" onclick="App.addToCart(${book.book_id}, '${escapeQuote(book.title)}', ${effectivePrice}, '${escapeQuote(book.cover_image || '')}')">Add to Cart</button>
+              `}
             </div>
           </div>
         </article>

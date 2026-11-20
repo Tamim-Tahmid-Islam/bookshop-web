@@ -550,7 +550,11 @@ const App = {
             </div>
 
             <div style="display: flex; gap: 12px;">
-              <button class="auth-btn auth-btn-primary" style="flex: 1;" onclick="App.addToCart(${book.book_id}, '${escapeQuote(book.title)}', ${effectivePrice}, '${escapeQuote(book.cover_image || '')}')">Add to Cart (৳${effectivePrice})</button>
+              ${book.stock_qty <= 0 ? `
+                <button class="auth-btn auth-btn-primary" style="flex: 1; opacity: 0.55; cursor: not-allowed; background: var(--ink-faint);" disabled>Sold Out (Out of Stock)</button>
+              ` : `
+                <button class="auth-btn auth-btn-primary" style="flex: 1;" onclick="App.addToCart(${book.book_id}, '${escapeQuote(book.title)}', ${effectivePrice}, '${escapeQuote(book.cover_image || '')}')">Add to Cart (৳${effectivePrice})</button>
+              `}
               <button class="auth-btn auth-btn-ghost" onclick="App.toggleWishlist(${book.book_id})">${isWishlisted ? '♥ Saved in Wishlist' : '♡ Save to Wishlist'}</button>
             </div>
           </div>
