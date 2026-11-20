@@ -216,12 +216,20 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             res = db.initiate_forgot_password(email)
             if res['success']:
-                mailer.send_password_reset_email(res['email'], res['full_name'], res['code'])
-                self._send_json(200, {
-                    'success': True,
-                    'email': res['email'],
-                    'message': 'We have sent you a code to verify.'
-                })
+                delivery = mailer.send_password_reset_email(res['email'], res['full_name'], res['code'])
+                if delivery.get('delivered'):
+                    self._send_json(200, {
+                        'success': True,
+                        'email': res['email'],
+                        'message': 'We have sent you a code to verify.'
+                    })
+                else:
+                    err_msg = delivery.get('message', 'Email dispatch error.')
+                    self._send_json(502, {
+                        'success': False,
+                        'email': res['email'],
+                        'message': f"Email could not be delivered: {err_msg}"
+                    })
             else:
                 self._send_json(404, {'success': False, 'message': res['message']})
             return

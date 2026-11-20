@@ -18,12 +18,12 @@ OUTBOX_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'email_out
 def load_email_config():
     """Load email configuration from email_config.json or environment variables."""
     cfg = {
-        'smtp_host': os.environ.get('SMTP_HOST', 'smtp.gmail.com'),
+        'smtp_host': os.environ.get('SMTP_HOST', 'smtp.gmail.com').strip(),
         'smtp_port': int(os.environ.get('SMTP_PORT', 587)),
-        'smtp_user': os.environ.get('SMTP_USER', ''),
-        'smtp_password': os.environ.get('SMTP_PASSWORD', ''),
-        'sender_name': os.environ.get('SMTP_SENDER_NAME', 'PageVault Security'),
-        'sender_email': os.environ.get('SMTP_SENDER_EMAIL', '')
+        'smtp_user': os.environ.get('SMTP_USER', '').strip(),
+        'smtp_password': os.environ.get('SMTP_PASSWORD', '').replace(' ', '').strip(),
+        'sender_name': os.environ.get('SMTP_SENDER_NAME', 'PageVault Security').strip(),
+        'sender_email': os.environ.get('SMTP_SENDER_EMAIL', '').strip()
     }
 
     if os.path.exists(CONFIG_FILE):
@@ -32,7 +32,12 @@ def load_email_config():
                 file_cfg = json.load(f)
                 for k, v in file_cfg.items():
                     if v:
-                        cfg[k] = v
+                        if k == 'smtp_password' and isinstance(v, str):
+                            cfg[k] = v.replace(' ', '').strip()
+                        elif isinstance(v, str):
+                            cfg[k] = v.strip()
+                        else:
+                            cfg[k] = v
         except Exception as e:
             print(f"[Mailer] Warning: Could not read {CONFIG_FILE}: {e}")
 
@@ -138,10 +143,13 @@ https://pagevault.com
 </html>
 """
 
-    has_credentials = bool(cfg['smtp_user'] and cfg['smtp_password'])
+    user = cfg.get('smtp_user', '').strip()
+    pw = cfg.get('smtp_password', '').replace(' ', '').strip()
+    has_credentials = bool(user and pw and pw.lower() != 'none')
 
     if has_credentials:
         try:
+            print(f"[Mailer] Attempting SMTP delivery to {to_email} via {cfg['smtp_host']}:{cfg['smtp_port']} (Account: {user})...")
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
             msg['From'] = sender
@@ -156,23 +164,23 @@ https://pagevault.com
             server.ehlo()
             server.starttls()
             server.ehlo()
-            server.login(cfg['smtp_user'], cfg['smtp_password'])
+            server.login(user, pw)
             server.sendmail(cfg['sender_email'], [to_email], msg.as_string())
             server.quit()
 
             log_to_outbox(to_email, subject, code, True, "Dispatched via SMTP successfully")
-            print(f"[Mailer] Successfully delivered verification email to {to_email}")
+            print(f"[Mailer] SUCCESS: Delivered verification email to {to_email}")
             return {'delivered': True, 'method': 'smtp', 'message': 'Email delivered via SMTP.'}
         except Exception as e:
             err_msg = f"SMTP dispatch error: {str(e)}"
-            print(f"[Mailer] {err_msg}")
+            print(f"[Mailer] ERROR: {err_msg}")
             log_to_outbox(to_email, subject, code, False, err_msg)
-            return {'delivered': False, 'method': 'outbox_logged', 'message': err_msg}
+            return {'delivered': False, 'method': 'error', 'message': err_msg}
     else:
-        # No credentials configured yet; record to local outbox log
-        log_to_outbox(to_email, subject, code, False, "No SMTP credentials set in email_config.json")
-        print(f"[Mailer] Logged code for {to_email} to email_outbox.log (configure email_config.json for real SMTP delivery)")
-        return {'delivered': False, 'method': 'outbox_logged', 'message': 'Logged to outbox.'}
+        err_msg = "No SMTP credentials set. Please configure SMTP_USER and SMTP_PASSWORD in Render Environment settings."
+        log_to_outbox(to_email, subject, code, False, err_msg)
+        print(f"[Mailer] WARNING: {err_msg}")
+        return {'delivered': False, 'method': 'outbox_logged', 'message': err_msg}
 
 
 
@@ -267,7 +275,9 @@ The PageVault Team
 </html>
 """
 
-    has_credentials = bool(cfg['smtp_user'] and cfg['smtp_password'])
+    user = cfg.get('smtp_user', '').strip()
+    pw = cfg.get('smtp_password', '').replace(' ', '').strip()
+    has_credentials = bool(user and pw and pw.lower() != 'none')
 
     if has_credentials:
         try:
@@ -283,7 +293,7 @@ The PageVault Team
             server.ehlo()
             server.starttls()
             server.ehlo()
-            server.login(cfg['smtp_user'], cfg['smtp_password'])
+            server.login(user, pw)
             server.sendmail(cfg['sender_email'], [to_email], msg.as_string())
             server.quit()
 
