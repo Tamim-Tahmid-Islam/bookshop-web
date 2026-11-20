@@ -204,7 +204,7 @@ const App = {
         bookId: bookId,
         title: title,
         price: parseFloat(price),
-        coverImage: coverImage || 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg',
+        coverImage: coverImage || '/static/img/book-placeholder.svg',
         quantity: 1
       });
     }
@@ -269,7 +269,7 @@ const App = {
 
       return `
         <div class="cart-item-card">
-          <img class="cart-item-img" src="${item.coverImage}" alt="${escapeHtml(item.title)}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" />
+          <img class="cart-item-img" src="${item.coverImage}" alt="${escapeHtml(item.title)}" onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" />
           <div class="cart-item-details">
             <h4 class="cart-item-title">${escapeHtml(item.title)}</h4>
             <div class="cart-item-price">৳${item.price.toFixed(2)}</div>
@@ -461,7 +461,7 @@ const App = {
 
         return `
           <div style="display: flex; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--cream-border);">
-            <img src="${b.cover_image || 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg'}" alt="${escapeHtml(b.title)}" style="width: 48px; height: 68px; object-fit: cover; border-radius: 6px;" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" />
+            <img src="${b.cover_image || '/static/img/book-placeholder.svg'}" alt="${escapeHtml(b.title)}" style="width: 48px; height: 68px; object-fit: cover; border-radius: 6px;" onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" />
             <div style="flex: 1; min-width: 0;">
               <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--ink-black); margin-bottom: 2px;">${escapeHtml(b.title)}</h4>
               <p style="font-size: 0.8rem; color: var(--ink-muted); margin-bottom: 4px;">by ${escapeHtml(b.author_names || 'Unknown')}</p>
@@ -517,7 +517,7 @@ const App = {
       container.innerHTML = `
         <div style="display: flex; gap: 24px; flex-wrap: wrap;">
           <div style="width: 190px; flex-shrink: 0; position: relative;">
-            <img src="${book.cover_image || 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg'}" alt="${escapeHtml(book.title)}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);" />
+            <img src="${book.cover_image || '/static/img/book-placeholder.svg'}" alt="${escapeHtml(book.title)}" onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);" />
             <div style="margin-top: 14px; font-size: 0.8rem; color: #64748b; line-height: 1.6;">
               <p><strong>ISBN:</strong> ${book.isbn}</p>
               <p><strong>Pages:</strong> ${book.page_count}</p>
@@ -711,7 +711,7 @@ const App = {
       } else {
         stockTbody.innerHTML = lowItems.map(b => `
           <tr>
-            <td><img src="${b.cover_image || ''}" class="admin-thumb" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" /></td>
+            <td><img src="${b.cover_image || ''}" class="admin-thumb" onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" /></td>
             <td>
               <strong>${escapeHtml(b.title)}</strong>
               <div style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(b.authors || 'Unknown')} &bull; ISBN: ${escapeHtml(b.isbn)}</div>
@@ -742,7 +742,7 @@ const App = {
       const isLowStock = b.stock_qty <= 20;
       return `
         <tr>
-          <td><img src="${b.cover_image || ''}" class="admin-thumb" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" /></td>
+          <td><img src="${b.cover_image || ''}" class="admin-thumb" onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" /></td>
           <td>
             <strong>${escapeHtml(b.title)}</strong>
             <div style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(b.authors || 'Unknown')} &bull; ISBN: ${escapeHtml(b.isbn)}</div>
@@ -902,7 +902,7 @@ const App = {
       publication_year: parseInt(document.getElementById('crud-book-year').value || 2024),
       page_count: parseInt(document.getElementById('crud-book-pages').value || 300),
       description: document.getElementById('crud-book-desc').value.trim(),
-      cover_image: document.getElementById('crud-book-cover').value.trim() || 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg'
+      cover_image: document.getElementById('crud-book-cover').value.trim() || '/static/img/book-placeholder.svg'
     };
 
     const url = isUpdate ? `/api/books/${bookId}/update` : '/api/books';
@@ -1007,4 +1007,23 @@ function showToast(message, type = 'info') {
 // Boot application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
+
+  // Page Loader — only show once per session
+  const loader = document.getElementById('page-loader');
+  if (loader) {
+    const hasSeenLoader = sessionStorage.getItem('pv_loader_shown');
+    if (hasSeenLoader) {
+      // Skip animation on subsequent page loads within the same session
+      loader.remove();
+      document.body.classList.add('page-revealed');
+    } else {
+      // Show editorial reveal animation
+      sessionStorage.setItem('pv_loader_shown', '1');
+      setTimeout(() => {
+        loader.classList.add('loaded');
+        document.body.classList.add('page-revealed');
+        setTimeout(() => loader.remove(), 700);
+      }, 2000);
+    }
+  }
 });

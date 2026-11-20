@@ -242,7 +242,7 @@ const SearchEngine = {
 
           dropdown.innerHTML = suggestions.map(b => `
             <div class="suggestion-item" onclick="App.openBookModal(${b.book_id}); SearchEngine.closeSuggestions();">
-              <img class="suggestion-thumb" src="${b.cover_image || 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg'}" alt="${escapeHtml(b.title)}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" />
+              <img class="suggestion-thumb" src="${b.cover_image || '/static/img/book-placeholder.svg'}" alt="${escapeHtml(b.title)}" onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" />
               <div class="suggestion-info">
                 <div class="suggestion-title">${escapeHtml(b.title)}</div>
                 <div class="suggestion-meta">${escapeHtml(b.author_names || 'Unknown')} • <span style="color: var(--burnt-orange); font-weight: 600;">${escapeHtml(b.category_name)}</span></div>
@@ -553,10 +553,10 @@ const SearchEngine = {
         <article class="book-card" data-book-id="${book.book_id}">
           <div class="book-cover-container">
             <img class="book-cover-img" 
-                 src="${book.cover_image || 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg'}" 
+                 src="${book.cover_image || '/static/img/book-placeholder.svg'}" 
                  alt="${escapeHtml(book.title)}" 
                  loading="lazy" 
-                 onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';" />
+                 onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" />
             
             <!-- Wishlist Heart Button -->
             <button class="wishlist-toggle-btn ${isWishlisted ? 'active' : ''}" 

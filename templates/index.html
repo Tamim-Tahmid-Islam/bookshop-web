@@ -9,9 +9,26 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css" />
-  <link rel="stylesheet" href="/static/css/dbms-inspector.css" />
 </head>
 <body>
+
+  <!-- =========================================================================
+       Page Loader — Editorial Reveal Animation
+       ========================================================================= -->
+  <div id="page-loader" class="page-loader">
+    <div class="loader-content">
+      <div class="loader-logo">
+        <img src="/static/img/logo.svg" alt="PageVault" class="loader-logo-img" />
+      </div>
+      <div class="loader-line"></div>
+      <div class="loader-tagline">
+        <span class="loader-word">Curated</span>
+        <span class="loader-word">Books.</span>
+        <span class="loader-word">Infinite</span>
+        <span class="loader-word">Worlds.</span>
+      </div>
+    </div>
+  </div>
 
   <!-- =========================================================================
        1. Top Navigation Bar with Logo, Search Menu, & Auth Controls
@@ -305,43 +322,7 @@
   <footer class="site-footer">
     <div class="footer-container">
       <div class="footer-grid">
-        <!-- Column 1: Brand & Philosophy -->
-        <div class="footer-col brand-col">
-          <div class="footer-brand">
-            <img src="/static/img/logo.svg" alt="PageVault Logo" class="footer-logo" />
-          </div>
-          <p class="footer-tagline">
-            An industrial-grade online bookshop &amp; catalog management engine built on relational MySQL architecture. Designed with 3NF normalization, atomic ACID transactions, and sub-millisecond B-tree indexing.
-          </p>
-          <div class="footer-status-pill">
-            <span class="pulse-dot"></span>
-            <span>MySQL 8.0 Engine Online &bull; B-Tree Indexing Active</span>
-          </div>
-        </div>
-
-        <!-- Column 2: Relational DBMS Architecture -->
-        <div class="footer-col">
-          <h4 class="footer-heading">DBMS Relational Architecture</h4>
-          <ul class="footer-spec-list">
-            <li>
-              <strong>Normalization:</strong> Third Normal Form (3NF) schema decomposition
-            </li>
-            <li>
-              <strong>Transaction Safety:</strong> InnoDB Atomic ACID transactions with automatic rollback
-            </li>
-            <li>
-              <strong>Indexing Strategy:</strong> Clustered B-Tree primary keys &amp; composite indexes
-            </li>
-            <li>
-              <strong>Query Execution:</strong> Multi-predicate relational algebra &amp; dynamic projections
-            </li>
-            <li>
-              <strong>Audit Logging:</strong> Trigger-backed catalog modifications &amp; ledger records
-            </li>
-          </ul>
-        </div>
-
-        <!-- Column 3: Curated Collections -->
+        <!-- Column 1: Curated Collections -->
         <div class="footer-col">
           <h4 class="footer-heading">Curated Disciplines</h4>
           <ul class="footer-links-list">
@@ -370,7 +351,7 @@
             <span class="pay-pill pay-card">Cards</span>
           </div>
           <div class="footer-contact-link">
-            <span>Course Inquiries &amp; Feedback:</span>
+            <span>Inquiries &amp; Feedback:</span>
             <a href="mailto:tamimtahmid270@gmail.com">tamimtahmid270@gmail.com</a>
           </div>
         </div>
@@ -378,12 +359,8 @@
 
       <!-- Footer Bottom Bar -->
       <div class="footer-bottom">
-        <p>&copy; 2026 <strong>PageVault</strong>. Developed by <strong>Tamim Tahmid</strong> for Database Management Systems Course Project.</p>
+        <p>&copy; 2026 <strong>PageVault</strong>. All rights reserved.</p>
         <div class="footer-bottom-links">
-          <a href="javascript:void(0)" onclick="App.openAdminDashboard()">Admin Control Center</a>
-          <span class="sep">&bull;</span>
-          <a href="mailto:tamimtahmid270@gmail.com">Contact Developer</a>
-          <span class="sep">&bull;</span>
           <a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Back to Top &uarr;</a>
         </div>
       </div>

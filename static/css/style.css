@@ -2442,7 +2442,7 @@ input:checked + .slider:before {
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1.2fr 1fr 1.2fr;
+  grid-template-columns: 1fr 1.2fr;
   gap: 36px;
   margin-bottom: 44px;
 }
@@ -2661,5 +2661,122 @@ input:checked + .slider:before {
   }
   .price-preset-chips {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+/* =============================================================================
+   13. Page Loader — Editorial Reveal Animation
+   Inspired by: Stripe, Linear, Apple product pages
+   ============================================================================= */
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cream);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0s 0.6s;
+}
+
+.page-loader.loaded {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.loader-logo {
+  opacity: 0;
+  transform: translateY(18px) scale(0.92);
+  animation: loaderFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+}
+
+.loader-logo-img {
+  height: 52px;
+  width: auto;
+}
+
+.loader-line {
+  width: 0;
+  height: 1.5px;
+  background: var(--burnt-orange);
+  margin: 20px 0 18px;
+  animation: loaderLineExpand 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s forwards;
+}
+
+.loader-tagline {
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-style: italic;
+  color: var(--ink-muted);
+  letter-spacing: 0.01em;
+}
+
+.loader-word {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.loader-word:nth-child(1) { animation: loaderFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.7s forwards; }
+.loader-word:nth-child(2) { animation: loaderFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.85s forwards; }
+.loader-word:nth-child(3) { animation: loaderFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 1.0s forwards; }
+.loader-word:nth-child(4) { animation: loaderFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 1.15s forwards; }
+
+@keyframes loaderFadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes loaderLineExpand {
+  to {
+    width: 160px;
+  }
+}
+
+/* Main content reveal after loader exits */
+body.page-revealed .navbar,
+body.page-revealed .layout-wrapper,
+body.page-revealed .site-footer {
+  animation: contentReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes contentReveal {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hide content until revealed */
+body:not(.page-revealed) .navbar,
+body:not(.page-revealed) .layout-wrapper,
+body:not(.page-revealed) .site-footer {
+  opacity: 0;
+}
+
+@media (max-width: 600px) {
+  .loader-logo-img {
+    height: 40px;
+  }
+  .loader-tagline {
+    font-size: 1rem;
+    gap: 6px;
   }
 }
