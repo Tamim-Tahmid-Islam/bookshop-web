@@ -1,0 +1,299 @@
+/* =============================================================================
+   PageVault - DBMS Teaching Lab & SQL Query Inspector Styles
+   ============================================================================= */
+
+.dbms-modal-container {
+  max-width: 960px;
+  width: 95%;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+  overflow: hidden;
+}
+
+.dbms-header {
+  padding: 18px 24px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dbms-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dbms-badge-title {
+  background: linear-gradient(135deg, #4f46e5, #06b6d4);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dbms-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.dbms-stats-strip {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.dbms-stat-pill {
+  background: #0f172a;
+  border: 1px solid #334155;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dbms-stat-pill strong {
+  color: #38bdf8;
+}
+
+/* Inspector Tabs */
+.dbms-tabs {
+  display: flex;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  padding: 0 24px;
+  gap: 8px;
+}
+
+.dbms-tab-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dbms-tab-btn:hover {
+  color: #f8fafc;
+}
+
+.dbms-tab-btn.active {
+  color: #38bdf8;
+  border-bottom-color: #38bdf8;
+}
+
+/* Tab Panels Content */
+.dbms-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.dbms-panel {
+  display: none;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dbms-panel.active {
+  display: flex;
+}
+
+/* Code Display Box */
+.code-container {
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  position: relative;
+  overflow-x: auto;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #1e293b;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.copy-sql-btn {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.copy-sql-btn:hover {
+  background: #334155;
+  color: white;
+}
+
+.sql-code-block {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  color: #e2e8f0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Keywords coloring */
+.sql-keyword { color: #f43f5e; font-weight: 700; }
+.sql-func { color: #38bdf8; }
+.sql-table { color: #a855f7; }
+.sql-str { color: #10b981; }
+.sql-num { color: #fbbf24; }
+.sql-comment { color: #64748b; font-style: italic; }
+
+/* Parameter List Table */
+.param-table-container {
+  border: 1px solid #334155;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.param-table th {
+  background: #1e293b;
+  color: #94a3b8;
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #334155;
+}
+
+.param-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e293b;
+  color: #cbd5e1;
+}
+
+.param-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* EXPLAIN Execution Plan Table */
+.explain-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #334155;
+  border-radius: var(--radius-md);
+  margin-top: 10px;
+}
+
+.explain-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  text-align: left;
+}
+
+.explain-table th {
+  background: #1e293b;
+  color: #38bdf8;
+  padding: 10px 12px;
+  font-weight: 700;
+  border-bottom: 1px solid #334155;
+  white-space: nowrap;
+}
+
+.explain-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e293b;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.explain-table tr:nth-child(even) {
+  background: rgba(30, 41, 59, 0.4);
+}
+
+/* Access type badges */
+.type-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+.type-const { background: #065f46; color: #34d399; }
+.type-eq_ref { background: #064e3b; color: #6ee7b7; }
+.type-ref { background: #1e3a8a; color: #93c5fd; }
+.type-range { background: #854d0e; color: #fde047; }
+.type-fulltext { background: #581c87; color: #e9d5ff; }
+.type-all { background: #7f1d1d; color: #fca5a5; }
+
+/* Relational Algebra Box */
+.algebra-box {
+  background: #1e1b4b;
+  border: 1px solid #4338ca;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  color: #c7d2fe;
+  line-height: 1.6;
+}
+
+/* Educational Concept Cards */
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.concept-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.concept-card h4 {
+  font-size: 0.92rem;
+  color: #38bdf8;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.concept-card p {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}

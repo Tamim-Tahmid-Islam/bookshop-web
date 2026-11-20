@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PageVault - Online Bookshop &amp; DBMS Management System</title>
+  <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/static/css/dbms-inspector.css" />
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. Top Navigation Bar with Logo, Search Menu, & Auth Controls
+       ========================================================================= -->
+  <header class="navbar">
+    <div class="nav-left">
+      <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Toggle Categories Side Menu" aria-label="Toggle Side Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
+      <a href="/" class="brand-link">
+        <img src="/static/img/logo.svg" alt="PageVault Logo" class="brand-logo" />
+      </a>
+    </div>
+
+    <!-- Search Menu (Central DBMS Teaching Component) -->
+    <div class="nav-search-bar">
+      <form id="search-form" class="search-input-group">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-input" 
+          placeholder="Search by title, author, description, or ISBN..." 
+          autocomplete="off" 
+        />
+        <button type="submit" class="search-submit-btn">
+          <span>Search</span>
+        </button>
+      </form>
+      <!-- Live Search Typeahead Suggestions Dropdown -->
+      <div id="search-suggestions-dropdown" class="suggestions-dropdown" style="display: none;"></div>
+    </div>
+
+    <!-- Top Right Actions -->
+    <div class="nav-right">
+      <!-- Wishlist Action Button -->
+      <button id="open-wishlist-btn" class="nav-action-pill" title="View Saved Books in Wishlist">
+        <span class="nav-action-icon">♡</span>
+        <span>Wishlist</span>
+        <span class="count-badge" id="wishlist-count">0</span>
+      </button>
+
+      <!-- Cart Action Button -->
+      <button id="open-cart-btn" class="nav-action-pill nav-action-cart" title="View Shopping Cart">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="21" r="1"></circle>
+          <circle cx="20" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+        <span>Cart</span>
+        <span class="count-badge" id="cart-count">0</span>
+      </button>
+
+      <button id="add-book-nav-btn" class="auth-btn auth-btn-primary" style="display: none;">
+        <span>+ Add Book</span>
+      </button>
+
+      <!-- Logged Out State -->
+      <div id="auth-logged-out" style="display: flex; gap: 8px;">
+        <button id="open-login-btn" class="auth-btn auth-btn-ghost">Sign In</button>
+        <button id="open-register-btn" class="auth-btn auth-btn-primary">Register</button>
+      </div>
+
+      <!-- Logged In State -->
+      <div id="auth-logged-in" style="display: none; align-items: center; gap: 10px;">
+        <div class="user-badge">
+          <div class="user-avatar" id="user-avatar-initial">U</div>
+          <span id="user-full-name">User Name</span>
+          <span class="filter-badge" id="user-role-badge" style="background: var(--burnt-orange); color: white; padding: 2px 8px; border-radius: var(--radius-pill); font-size: 0.72rem; font-weight: 700;">Customer</span>
+        </div>
+        <button id="logout-btn" class="logout-icon-btn" title="Sign Out">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       2. Application Body: Sidebar Menu + Main Catalog View
+       ========================================================================= -->
+  <div class="app-container">
+    
+    <!-- Side Menu (Sidebar Navigation) -->
+    <aside id="sidebar" class="sidebar">
+      <!-- Section 1: Categories -->
+      <div class="filter-section">
+        <h4 class="filter-title">
+          <span>Disciplines &amp; Categories</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+        </h4>
+        <ul id="categories-filter-list" class="filter-list">
+          <!-- Dynamically populated via JS -->
+          <li><span style="font-size: 0.8rem; color: #94a3b8;">Loading categories...</span></li>
+        </ul>
+      </div>
+
+      <!-- Section 2: Price Range Filter -->
+      <div class="filter-section">
+        <h4 class="filter-title">
+          <span>Price Filter (BDT)</span>
+          <span style="font-size: 0.72rem; color: var(--burnt-orange); font-weight: 700;">RANGE</span>
+        </h4>
+        <div class="price-inputs">
+          <div class="price-input-box">
+            <span class="price-currency">৳</span>
+            <input type="number" id="price-min" class="price-input-field" placeholder="Min" min="0" step="50" />
+          </div>
+          <span style="color: #94a3b8;">—</span>
+          <div class="price-input-box">
+            <span class="price-currency">৳</span>
+            <input type="number" id="price-max" class="price-input-field" placeholder="Max" min="0" step="50" />
+          </div>
+          <button id="apply-price-btn" class="price-apply-btn">Apply</button>
+        </div>
+      </div>
+
+      <!-- Section 3: Star Rating Filter -->
+      <div class="filter-section">
+        <h4 class="filter-title">
+          <span>Customer Reviews</span>
+          <span style="font-size: 0.72rem; color: var(--burnt-orange); font-weight: 700;">HAVING</span>
+        </h4>
+        <div class="rating-options">
+          <label class="rating-option-label">
+            <input type="radio" name="filter-rating" value="" checked />
+            <span>All Ratings</span>
+          </label>
+          <label class="rating-option-label">
+            <input type="radio" name="filter-rating" value="4.5" />
+            <span class="rating-stars">★★★★★</span>
+            <span>4.5 &amp; up</span>
+          </label>
+          <label class="rating-option-label">
+            <input type="radio" name="filter-rating" value="4.0" />
+            <span class="rating-stars">★★★★☆</span>
+            <span>4.0 &amp; up</span>
+          </label>
+          <label class="rating-option-label">
+            <input type="radio" name="filter-rating" value="3.0" />
+            <span class="rating-stars">★★★☆☆</span>
+            <span>3.0 &amp; up</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 4: Availability Toggle -->
+      <div class="filter-section">
+        <h4 class="filter-title">
+          <span>Inventory Availability</span>
+        </h4>
+        <div class="toggle-wrapper">
+          <span style="font-size: 0.85rem; color: #334155;">In-Stock Titles Only</span>
+          <label class="switch">
+            <input type="checkbox" id="stock-only-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Reset Button -->
+      <button id="reset-filters-btn" class="reset-filters-btn">
+        <span>Reset All Search Predicates</span>
+      </button>
+    </aside>
+
+    <!-- Main Catalog View -->
+    <main class="main-content">
+      
+      <!-- Catalog Editorial Header (Mesa Style) -->
+      <div class="catalog-header-bar">
+        <div>
+          <h1 class="catalog-headline">The Curated Library <em class="serif-accent">that inspires.</em></h1>
+          <p class="catalog-subhead">Explore <strong id="total-results-count">27</strong> titles spanning relational systems, literature, and self-mastery.</p>
+        </div>
+        <div class="toolbar-controls">
+          <label for="sort-select" class="sort-label">Sort:</label>
+          <select id="sort-select" class="sort-select">
+            <option value="relevance">Relevance / Default</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+            <option value="rating_desc">Highest Customer Rating</option>
+            <option value="year_desc">Publication Year (Newest)</option>
+            <option value="title_asc">Title (A - Z)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Books Grid -->
+      <div id="books-grid" class="books-grid">
+        <!-- Rendered dynamically via search.js -->
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination-container" class="pagination">
+        <!-- Rendered dynamically via search.js -->
+      </div>
+    </main>
+  </div>
+
+  <!-- =========================================================================
+       3. Auth Modal (Login, Registration, and FORGOT PASSWORD workflow)
+       ========================================================================= -->
+  <div id="auth-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title" id="auth-modal-title">Account Access</h3>
+        <button class="modal-close-btn" onclick="Auth.closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Tab Navigation -->
+        <div class="form-tab-nav">
+          <button class="form-tab-btn auth-tab-btn active" data-tab="login">Sign In</button>
+          <button class="form-tab-btn auth-tab-btn" data-tab="register">Create Account</button>
+          <button class="form-tab-btn auth-tab-btn" data-tab="forgot">Forgot Password</button>
+        </div>
+
+        <!-- Panel 1: Sign In -->
+        <div id="auth-panel-login" class="auth-panel">
+          <form id="login-form">
+            <div class="form-group">
+              <label class="form-label">Email Address or Username</label>
+              <input type="text" id="login-identifier" class="form-input" placeholder="e.g. alex@example.com or admin" required />
+            </div>
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0;">Password</label>
+                <a href="#" id="goto-forgot-pw-link" style="font-size: 0.8rem; color: var(--burnt-orange); text-decoration: none; font-weight: 600;">Forgot Password?</a>
+              </div>
+              <input type="password" id="login-password" class="form-input" placeholder="••••••••" required />
+            </div>
+            <button type="submit" class="form-btn">Sign In to PageVault</button>
+          </form>
+        </div>
+
+        <!-- Panel 2: Register -->
+        <div id="auth-panel-register" class="auth-panel" style="display: none;">
+          <form id="register-form">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="reg-fullname" class="form-input" placeholder="e.g. Ada Lovelace" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" id="reg-username" class="form-input" placeholder="e.g. adalovelace" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="reg-email" class="form-input" placeholder="e.g. ada@example.com" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" id="reg-password" class="form-input" placeholder="Minimum 8 characters" required />
+            </div>
+            <button type="submit" class="form-btn">Complete Registration</button>
+          </form>
+        </div>
+
+        <!-- Panel 3: FORGOT PASSWORD (Complete 2-Step Verified Flow) -->
+        <div id="auth-panel-forgot" class="auth-panel" style="display: none;">
+          
+          <!-- Step 1: Email Request -->
+          <div id="forgot-step-1">
+            <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 16px;">
+              Enter your registered email address. The system will generate a secure reset token with a 60-minute expiration stored in the <code>password_resets</code> MySQL table.
+            </p>
+            <form id="forgot-form">
+              <div class="form-group">
+                <label class="form-label">Registered Account Email</label>
+                <input type="email" id="forgot-email" class="form-input" placeholder="e.g. alex@example.com" required />
+                <div class="form-hint">Tip: Try the seeded email <code>alex@example.com</code></div>
+              </div>
+              <button type="submit" class="form-btn">Generate Verification Code</button>
+            </form>
+          </div>
+
+          <!-- Interactive Token Inspection Box (Simulates Email Delivery) -->
+          <div id="demo-token-display" class="demo-token-box" style="display: none;">
+            <div class="demo-token-header">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              <span>Email Delivery Simulation (DBMS Course Sandbox)</span>
+            </div>
+            <p style="color: #166534; font-size: 0.8rem; margin-bottom: 6px;">
+              A 6-digit verification code has been written to the <code>password_resets</code> database table:
+            </p>
+            <div style="text-align: center;">
+              <span class="demo-code-pill" id="demo-generated-code">------</span>
+            </div>
+          </div>
+
+          <!-- Step 2: Code Verification & Password Update -->
+          <div id="forgot-step-2" style="display: none;">
+            <form id="reset-form">
+              <div class="form-group">
+                <label class="form-label">6-Digit Verification Code or Reset Token</label>
+                <input type="text" id="reset-token-input" class="form-input" placeholder="Enter the 6-digit code" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input type="password" id="reset-new-password" class="form-input" placeholder="Enter new password" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <input type="password" id="reset-confirm-password" class="form-input" placeholder="Repeat new password" required />
+              </div>
+              <button type="submit" class="form-btn">Update Password in Database</button>
+            </form>
+          </div>
+
+          <div style="margin-top: 18px; text-align: center;">
+            <a href="#" id="back-to-login-link" style="font-size: 0.85rem; color: #64748b; text-decoration: none;">← Return to Sign In</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       4. Book Detail Modal
+       ========================================================================= -->
+  <div id="book-detail-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 720px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Book Specifications</h3>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="book-detail-body">
+        <!-- Rendered dynamically via app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       5. Add Book Modal (Admin / Librarian Product Management)
+       ========================================================================= -->
+  <div id="add-book-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 640px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Catalog Management: Add New Book</h3>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="add-book-form">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">ISBN-13 (Unique Key)</label>
+              <input type="text" id="add-book-isbn" class="form-input" placeholder="978-0123456789" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category (Foreign Key)</label>
+              <select id="add-book-category" class="form-select" required></select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Book Title</label>
+            <input type="text" id="add-book-title" class="form-input" placeholder="e.g. Relational Theory for Computer Scientists" required />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">Price (BDT ৳)</label>
+              <input type="number" id="add-book-price" class="form-input" step="1" min="0" placeholder="850" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Discount (%)</label>
+              <input type="number" id="add-book-discount" class="form-input" step="1" min="0" max="100" value="0" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Stock Units</label>
+              <input type="number" id="add-book-stock" class="form-input" min="0" value="25" required />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">Publication Year</label>
+              <input type="number" id="add-book-year" class="form-input" min="1900" max="2030" value="2024" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Page Count</label>
+              <input type="number" id="add-book-pages" class="form-input" min="1" value="450" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Cover Image URL</label>
+            <input type="url" id="add-book-cover" class="form-input" placeholder="https://images.unsplash.com/..." />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Book Description / Abstract</label>
+            <textarea id="add-book-desc" class="form-textarea" rows="3" placeholder="Comprehensive theoretical overview of relational models and indexing structures..."></textarea>
+          </div>
+
+          <button type="submit" class="form-btn">Execute SQL INSERT with Audit Logging</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       Cart Drawer (Slide-out Panel from Right Edge)
+       ========================================================================= -->
+  <div id="cart-drawer-overlay" class="drawer-overlay" onclick="App.closeCartDrawer()"></div>
+  <aside id="cart-drawer" class="cart-drawer">
+    <div class="drawer-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--dark);">Shopping Cart (<span id="drawer-items-count">0</span>)</h3>
+      </div>
+      <button class="drawer-close-btn" onclick="App.closeCartDrawer()">&times;</button>
+    </div>
+
+    <!-- Drawer Body / Item List -->
+    <div id="cart-drawer-items" class="drawer-body">
+      <!-- Items dynamically populated via app.js -->
+    </div>
+
+    <!-- Drawer Footer / Summary -->
+    <div id="cart-drawer-footer" class="drawer-footer">
+      <!-- Delivery Zone Selection -->
+      <div class="delivery-zone-box">
+        <label style="font-size: 0.78rem; font-weight: 700; color: var(--slate-600); display: block; margin-bottom: 6px;">DELIVERY AREA (BANGLADESH)</label>
+        <div style="display: flex; gap: 8px;">
+          <label class="delivery-radio-label">
+            <input type="radio" name="delivery-zone" value="60" checked onchange="App.updateDeliveryZone(60, 'Dhaka')" />
+            <span>Inside Dhaka (৳60)</span>
+          </label>
+          <label class="delivery-radio-label">
+            <input type="radio" name="delivery-zone" value="120" onchange="App.updateDeliveryZone(120, 'Outside Dhaka')" />
+            <span>Outside Dhaka (৳120)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Financial Summary -->
+      <div class="drawer-summary-lines">
+        <div class="summary-line">
+          <span>Subtotal</span>
+          <span id="drawer-subtotal">৳0.00</span>
+        </div>
+        <div class="summary-line">
+          <span>Estimated Delivery</span>
+          <span id="drawer-delivery-fee">৳60.00</span>
+        </div>
+        <div class="summary-line total">
+          <span>Total (BDT)</span>
+          <span id="drawer-total-amount">৳0.00</span>
+        </div>
+      </div>
+
+      <button id="proceed-checkout-btn" class="form-btn" style="margin-top: 12px;" onclick="App.openCheckoutModal()">
+        Proceed to Checkout →
+      </button>
+    </div>
+  </aside>
+
+  <!-- =========================================================================
+       Checkout & Payment Modal (bKash / Nagad / COD / Card)
+       ========================================================================= -->
+  <div id="checkout-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 620px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Secure Checkout &amp; Order Placement</h3>
+        <button class="modal-close-btn" onclick="App.closeCheckoutModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="checkout-form">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="checkout-name" class="form-input" placeholder="e.g. Tamim Tahmid" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number</label>
+              <input type="tel" id="checkout-phone" class="form-input" placeholder="017XXXXXXXX" required />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">Delivery Address</label>
+              <input type="text" id="checkout-address" class="form-input" placeholder="House #, Road #, Sector/Area" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">District / City</label>
+              <select id="checkout-district" class="form-select" onchange="App.onDistrictChange(this.value)">
+                <option value="Dhaka">Dhaka</option>
+                <option value="Chattogram">Chattogram</option>
+                <option value="Sylhet">Sylhet</option>
+                <option value="Rajshahi">Rajshahi</option>
+                <option value="Khulna">Khulna</option>
+                <option value="Barishal">Barishal</option>
+                <option value="Rangpur">Rangpur</option>
+                <option value="Mymensingh">Mymensingh</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Payment Methods -->
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label">Select Payment Method</label>
+            <div class="payment-methods-grid">
+              <label class="payment-card bkash-card">
+                <input type="radio" name="payment-method" value="bKash" checked />
+                <div class="payment-card-body">
+                  <span class="payment-title" style="color: #D12053; font-weight: 800;">bKash</span>
+                  <span class="payment-sub">Online Merchant Pay</span>
+                </div>
+              </label>
+
+              <label class="payment-card nagad-card">
+                <input type="radio" name="payment-method" value="Nagad" />
+                <div class="payment-card-body">
+                  <span class="payment-title" style="color: #F7921E; font-weight: 800;">Nagad</span>
+                  <span class="payment-sub">Digital Payment</span>
+                </div>
+              </label>
+
+              <label class="payment-card cod-card">
+                <input type="radio" name="payment-method" value="Cash on Delivery" />
+                <div class="payment-card-body">
+                  <span class="payment-title" style="font-weight: 800; color: #1e293b;">Cash on Delivery</span>
+                  <span class="payment-sub">Pay at doorstep</span>
+                </div>
+              </label>
+
+              <label class="payment-card card-card">
+                <input type="radio" name="payment-method" value="Card" />
+                <div class="payment-card-body">
+                  <span class="payment-title" style="font-weight: 800; color: #1e293b;">Debit/Credit Card</span>
+                  <span class="payment-sub">Visa, Mastercard</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Checkout Order Total Preview -->
+          <div class="checkout-total-banner">
+            <span>Payable Total (Including Delivery):</span>
+            <strong id="checkout-payable-total" style="font-size: 1.25rem; color: var(--burnt-orange);">৳0.00</strong>
+          </div>
+
+          <button type="submit" class="form-btn" style="margin-top: 16px;">
+            Confirm &amp; Place Order (ACID Transaction)
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       Order Success Modal
+       ========================================================================= -->
+  <div id="order-success-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 520px; text-align: center; padding: 32px 24px;">
+      <div class="success-icon-badge">✓</div>
+      <h2 style="font-size: 1.4rem; color: var(--ink-black); margin: 12px 0 6px;">Order Placed Successfully!</h2>
+      <p style="font-size: 0.88rem; color: var(--ink-muted); margin-bottom: 20px;">
+        Your order has been verified and committed to the database. Inventory has been updated atomically.
+      </p>
+
+      <div style="background: var(--cream-surface); border: 1px solid var(--cream-border); border-radius: var(--radius-md); padding: 18px; margin-bottom: 24px; text-align: left; font-size: 0.88rem; line-height: 1.9;">
+        <div><strong>Order Reference:</strong> <span id="success-order-code" style="font-family: var(--font-mono); color: var(--burnt-orange); font-weight: 700;">PV-000000</span></div>
+        <div><strong>Customer:</strong> <span id="success-customer-name">User</span></div>
+        <div><strong>Total Amount:</strong> <span id="success-total-amount" style="font-weight: 800; color: var(--ink-black);">৳0.00</span></div>
+        <div><strong>Payment Method:</strong> <span id="success-payment-method">bKash</span></div>
+        <div><strong>Estimated Delivery:</strong> <span>24 to 48 Hours</span></div>
+      </div>
+
+      <button class="auth-btn auth-btn-primary" style="width: 100%;" onclick="App.closeOrderSuccessModal()">Continue Exploring Books</button>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       Wishlist Modal
+       ========================================================================= -->
+  <div id="wishlist-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title">My Reading Wishlist (<span id="wishlist-modal-count">0</span>)</h3>
+        <button class="modal-close-btn" onclick="App.closeWishlistModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="wishlist-modal-body">
+        <!-- Rendered dynamically via app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Help & Query Circular Button (Right Edge) -->
+  <a href="mailto:tamimtahmid270@gmail.com?subject=PageVault%20Inquiry%20%2F%20Book%20Query" 
+     class="floating-help-btn" 
+     id="floating-help-btn" 
+     title="Need Help or Query? Email Support">
+    <svg class="help-btn-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+    <span class="help-tooltip">
+      <strong>Need Help or Query?</strong><br />
+      tamimtahmid270@gmail.com
+    </span>
+  </a>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- JavaScript Modules -->
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/dbms-inspector.js"></script>
+  <script src="/static/js/search.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# PageVault - Requirements
+# The project has ZERO mandatory dependencies and runs instantly with Python standard library.
+# To connect directly to a live MySQL 8.0 Server instance, install:
+pymysql>=1.1.0
+cryptography>=41.0.0
