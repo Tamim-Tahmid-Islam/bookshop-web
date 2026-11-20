@@ -716,6 +716,24 @@ const App = {
       }
     }
 
+    // Snapshot: Live Password Resets Table
+    const resetsTbody = document.getElementById('overview-resets-tbody');
+    if (resetsTbody) {
+      const resets = data.active_resets || [];
+      if (resets.length === 0) {
+        resetsTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--ink-muted); padding: 14px;">No active password reset requests in database.</td></tr>';
+      } else {
+        resetsTbody.innerHTML = resets.map(r => `
+          <tr>
+            <td><strong>${escapeHtml(r.full_name)}</strong></td>
+            <td>${escapeHtml(r.email)}</td>
+            <td><strong style="font-family: var(--font-mono); color: var(--burnt-orange); font-size: 1.05rem; letter-spacing: 2px;">${escapeHtml(r.reset_code)}</strong></td>
+            <td style="font-size: 0.78rem; color: var(--ink-faint);">${escapeHtml(r.expires_at)}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
     // Panel 2: Full Books CRUD Table
     this.renderAdminBooksTable(data.books || []);
 

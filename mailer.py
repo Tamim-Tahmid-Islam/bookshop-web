@@ -7,12 +7,39 @@ as well as file logging to email_outbox.log for development and audit trails.
 import os
 import json
 import smtplib
+import urllib.request
+import urllib.error
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'email_config.json')
 OUTBOX_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'email_outbox.log')
+
+
+def send_via_brevo_api(api_key: str, sender_email: str, sender_name: str, to_email: str, subject: str, html_content: str, text_content: str) -> bool:
+    """Dispatches transactional email via Brevo HTTPS API (Port 443 - works on Render Free Tier)."""
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key.strip(),
+        "content-type": "application/json"
+    }
+    payload = {
+        "sender": {"name": sender_name or "PageVault", "email": sender_email or "tamimtahmid270@gmail.com"},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_content,
+        "textContent": text_content
+    }
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            return resp.status in [200, 201]
+    except Exception as e:
+        print(f"[Mailer] Brevo API delivery error: {e}")
+        return False
 
 
 def load_email_config():
@@ -143,6 +170,15 @@ https://pagevault.com
 </html>
 """
 
+    # 1. Try HTTPS API first if configured (Bypasses Render Free Tier port 587 block)
+    brevo_key = os.environ.get('BREVO_API_KEY', '').strip()
+    if brevo_key:
+        ok = send_via_brevo_api(brevo_key, cfg['sender_email'], cfg['sender_name'], to_email, subject, html_content, text_content)
+        if ok:
+            log_to_outbox(to_email, subject, code, True, "Dispatched via Brevo HTTPS API successfully")
+            print(f"[Mailer] SUCCESS: Delivered reset code to {to_email} via Brevo HTTPS API")
+            return {'delivered': True, 'method': 'brevo_api', 'message': 'Email delivered via Brevo HTTPS API.'}
+
     user = cfg.get('smtp_user', '').strip()
     pw = cfg.get('smtp_password', '').replace(' ', '').strip()
     has_credentials = bool(user and pw and pw.lower() != 'none')
@@ -172,7 +208,11 @@ https://pagevault.com
             print(f"[Mailer] SUCCESS: Delivered verification email to {to_email}")
             return {'delivered': True, 'method': 'smtp', 'message': 'Email delivered via SMTP.'}
         except Exception as e:
-            err_msg = f"SMTP dispatch error: {str(e)}"
+            raw_err = str(e)
+            if '101' in raw_err or 'Network is unreachable' in raw_err:
+                err_msg = "Render Free blocks SMTP port 587. For online delivery, add a free BREVO_API_KEY, or view the verification code in your Admin Portal."
+            else:
+                err_msg = f"SMTP dispatch error: {raw_err}"
             print(f"[Mailer] ERROR: {err_msg}")
             log_to_outbox(to_email, subject, code, False, err_msg)
             return {'delivered': False, 'method': 'error', 'message': err_msg}
@@ -275,6 +315,15 @@ The PageVault Team
 </html>
 """
 
+    # 1. Try HTTPS API first if configured
+    brevo_key = os.environ.get('BREVO_API_KEY', '').strip()
+    if brevo_key:
+        ok = send_via_brevo_api(brevo_key, cfg['sender_email'], cfg['sender_name'], to_email, subject, html_content, text_content)
+        if ok:
+            log_to_outbox(to_email, subject, f"Order #{order_code}", True, "Order confirmation email sent via Brevo HTTPS API")
+            print(f"[Mailer] Order confirmation email sent to {to_email} for #{order_code} via Brevo API")
+            return {'delivered': True, 'method': 'brevo_api'}
+
     user = cfg.get('smtp_user', '').strip()
     pw = cfg.get('smtp_password', '').replace(' ', '').strip()
     has_credentials = bool(user and pw and pw.lower() != 'none')
@@ -301,7 +350,11 @@ The PageVault Team
             print(f"[Mailer] Order confirmation email sent to {to_email} for #{order_code}")
             return {'delivered': True, 'method': 'smtp'}
         except Exception as e:
-            err_msg = f"Order email SMTP error: {str(e)}"
+            raw_err = str(e)
+            if '101' in raw_err or 'Network is unreachable' in raw_err:
+                err_msg = "Render Free blocks SMTP port 587. Add a free BREVO_API_KEY in Environment settings to deliver emails."
+            else:
+                err_msg = f"Order email SMTP error: {raw_err}"
             print(f"[Mailer] {err_msg}")
             log_to_outbox(to_email, subject, f"Order #{order_code}", False, err_msg)
             return {'delivered': False, 'method': 'outbox_logged', 'message': err_msg}
