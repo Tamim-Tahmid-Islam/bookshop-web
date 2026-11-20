@@ -312,6 +312,8 @@ const App = {
     if (Auth.currentUser) {
       const nameField = document.getElementById('checkout-name');
       if (nameField && !nameField.value) nameField.value = Auth.currentUser.full_name;
+      const emailField = document.getElementById('checkout-email');
+      if (emailField && !emailField.value) emailField.value = Auth.currentUser.email;
     }
 
     const subtotal = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -347,6 +349,7 @@ const App = {
 
     const name = document.getElementById('checkout-name').value.trim();
     const phone = document.getElementById('checkout-phone').value.trim();
+    const email = document.getElementById('checkout-email') ? document.getElementById('checkout-email').value.trim() : '';
     const address = document.getElementById('checkout-address').value.trim();
     const district = document.getElementById('checkout-district').value;
     const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
@@ -355,12 +358,14 @@ const App = {
     const orderPayload = {
       customer_name: name,
       customer_phone: phone,
+      customer_email: email,
       delivery_address: address,
       district: district,
       payment_method: paymentMethod,
       user_id: Auth.currentUser ? Auth.currentUser.user_id : null,
       items: this.cart.map(item => ({
         book_id: item.bookId,
+        title: item.title,
         quantity: item.quantity,
         unit_price: item.price
       }))

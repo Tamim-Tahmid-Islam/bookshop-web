@@ -248,9 +248,21 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self._send_json(400, {'error': 'Invalid book ID'})
             return
 
-        # 6. API: Checkout & Create Order (Transactional ACID Order Placement)
+        # 6. API: Checkout & Create Order (Transactional Order Placement)
         if path == '/api/orders':
             res = db.create_order(body)
+            if res['success']:
+                customer_email = body.get('customer_email') or body.get('email', '')
+                if customer_email:
+                    mailer.send_order_confirmation_email(
+                        to_email=customer_email,
+                        customer_name=body.get('customer_name', 'Customer'),
+                        order_code=res['order_code'],
+                        total_amount=res['total_amount'],
+                        delivery_address=body.get('delivery_address', ''),
+                        payment_method=body.get('payment_method', 'Cash on Delivery'),
+                        items=body.get('items', [])
+                    )
             self._send_json(201 if res['success'] else 400, res)
             return
 

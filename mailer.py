@@ -173,3 +173,129 @@ https://pagevault.com
         log_to_outbox(to_email, subject, code, False, "No SMTP credentials set in email_config.json")
         print(f"[Mailer] Logged code for {to_email} to email_outbox.log (configure email_config.json for real SMTP delivery)")
         return {'delivered': False, 'method': 'outbox_logged', 'message': 'Logged to outbox.'}
+
+
+
+def send_order_confirmation_email(to_email: str, customer_name: str, order_code: str, total_amount: float, delivery_address: str, payment_method: str = "Cash on Delivery", items: list = None) -> dict:
+    """
+    Sends an order confirmation receipt email to the customer.
+    Delivered to whoever placed the order and entered their email address.
+    """
+    if not to_email:
+        return {'delivered': False, 'message': 'No customer email provided.'}
+
+    cfg = load_email_config()
+    subject = f"Order Confirmed: #{order_code} - PageVault"
+    sender = f"{cfg['sender_name']} <{cfg['sender_email'] or 'orders@pagevault.com'}>"
+
+    items_list_text = ""
+    items_list_html = ""
+    if items:
+        for it in items:
+            title = it.get('title', 'Book')
+            qty = it.get('quantity', 1)
+            price = it.get('unit_price', 0)
+            items_list_text += f"- {title} (x{qty}) - ৳{price:.2f}\n"
+            items_list_html += f"<tr><td style='padding: 8px 0; border-bottom: 1px solid #E2DAD0;'>{title} <span style='color: #736C62;'>&times; {qty}</span></td><td style='padding: 8px 0; text-align: right; border-bottom: 1px solid #E2DAD0; font-family: monospace; font-weight: 700;'>৳{price:.2f}</td></tr>"
+
+    text_content = f"""Hello {customer_name},
+
+Thank you for your order at PageVault!
+Your order #{order_code} has been confirmed and is now being prepared for delivery.
+
+Order Details:
+- Order Reference: {order_code}
+- Total Amount: ৳{total_amount:.2f}
+- Payment Method: {payment_method}
+- Delivery Address: {delivery_address}
+- Estimated Delivery: 24 to 48 Hours nationwide
+
+{items_list_text}
+If you have any questions or inquiries regarding your package, feel free to reply to this email or reach us at tamimtahmid270@gmail.com.
+
+Warm regards,
+The PageVault Team
+"""
+
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{ font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #F3EEE3; margin: 0; padding: 24px; color: #111111; }}
+    .container {{ max-width: 560px; margin: 0 auto; background: #FFFFFF; border-radius: 16px; border: 1px solid #E2DAD0; padding: 36px 32px; box-shadow: 0 4px 16px rgba(17,17,17,0.06); }}
+    .logo-title {{ font-size: 26px; font-weight: 800; color: #111111; text-align: center; }}
+    .logo-accent {{ color: #D9541E; }}
+    .badge {{ display: inline-block; background: #E8F5E9; color: #2E7D32; font-weight: 700; font-size: 13px; padding: 6px 14px; border-radius: 20px; margin-top: 12px; }}
+    .order-box {{ background: #FAF7F2; border: 1px solid #E2DAD0; border-radius: 12px; padding: 20px; margin: 24px 0; font-size: 14px; line-height: 1.8; }}
+    .total-row {{ font-size: 18px; font-weight: 800; color: #D9541E; font-family: monospace; }}
+    .footer {{ margin-top: 28px; padding-top: 20px; border-top: 1px solid #E2DAD0; font-size: 12px; color: #736C62; text-align: center; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="text-align: center;">
+      <div class="logo-title">Page<span class="logo-accent">Vault</span></div>
+      <div class="badge">&#10003; Order Confirmed &amp; Processing</div>
+    </div>
+
+    <p style="font-size: 15px; line-height: 1.6; margin-top: 24px;">
+      Hello <strong>{customer_name}</strong>,<br>
+      Thank you for shopping with PageVault! We have received your order and our logistics team is preparing it for prompt delivery.
+    </p>
+
+    <div class="order-box">
+      <div><strong>Order Code:</strong> <span style="font-family: monospace; color: #D9541E; font-weight: 700;">#{order_code}</span></div>
+      <div><strong>Payment Method:</strong> {payment_method}</div>
+      <div><strong>Delivery Address:</strong> {delivery_address}</div>
+      <div><strong>Estimated Delivery:</strong> 24–48 Hours (Nationwide)</div>
+      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #E2DAD0;">
+        <span style="font-size: 15px;">Total Payable: </span>
+        <span class="total-row">৳{total_amount:.2f}</span>
+      </div>
+    </div>
+
+    <p style="font-size: 13px; color: #736C62; line-height: 1.6;">
+      Need assistance or changes to your delivery details? Reach our support directly at <a href="mailto:tamimtahmid270@gmail.com" style="color: #D9541E; font-weight: 600;">tamimtahmid270@gmail.com</a>.
+    </p>
+
+    <div class="footer">
+      &copy; 2026 PageVault &bull; Curated Online Bookshop &bull; Bangladesh
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+    has_credentials = bool(cfg['smtp_user'] and cfg['smtp_password'])
+
+    if has_credentials:
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = sender
+            msg['To'] = to_email
+
+            msg.attach(MIMEText(text_content, 'plain', 'utf-8'))
+            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
+            server = smtplib.SMTP(cfg['smtp_host'], cfg['smtp_port'], timeout=12)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(cfg['smtp_user'], cfg['smtp_password'])
+            server.sendmail(cfg['sender_email'], [to_email], msg.as_string())
+            server.quit()
+
+            log_to_outbox(to_email, subject, f"Order #{order_code}", True, "Order confirmation email sent via SMTP")
+            print(f"[Mailer] Order confirmation email sent to {to_email} for #{order_code}")
+            return {'delivered': True, 'method': 'smtp'}
+        except Exception as e:
+            err_msg = f"Order email SMTP error: {str(e)}"
+            print(f"[Mailer] {err_msg}")
+            log_to_outbox(to_email, subject, f"Order #{order_code}", False, err_msg)
+            return {'delivered': False, 'method': 'outbox_logged', 'message': err_msg}
+    else:
+        log_to_outbox(to_email, subject, f"Order #{order_code}", False, "Logged order confirmation (SMTP credentials not yet set)")
+        print(f"[Mailer] Logged order confirmation for {to_email} to email_outbox.log")
+        return {'delivered': False, 'method': 'outbox_logged'}
