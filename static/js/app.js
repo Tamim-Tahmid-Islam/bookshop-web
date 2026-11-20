@@ -694,40 +694,65 @@ const App = {
       if (orders.length === 0) {
         ovOrdersTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--ink-muted); padding: 16px;">No customer orders placed yet.</td></tr>';
       } else {
-        ovOrdersTbody.innerHTML = orders.slice(0, 5).map(o => `
+        ovOrdersTbody.innerHTML = orders.slice(0, 5).map(o => {
+          const currentStatus = o.order_status || o.status || 'Confirmed';
+          const statusClass = currentStatus.toLowerCase().replace(/\s+/g, '-');
+          return `
           <tr>
-            <td><strong style="font-family: var(--font-mono); color: var(--burnt-orange);">${escapeHtml(o.order_number)}</strong></td>
+            <td><strong style="font-family: var(--font-mono); color: var(--burnt-orange);">${escapeHtml(o.order_code || o.order_number)}</strong></td>
             <td>${escapeHtml(o.customer_name)}</td>
             <td><strong style="font-family: var(--font-mono);">৳${parseFloat(o.total_amount).toFixed(2)}</strong></td>
-            <td><span class="status-badge status-${(o.status || 'processing').toLowerCase()}">${escapeHtml(o.status)}</span></td>
+            <td>
+              <select class="order-status-select" onchange="App.updateOrderStatus(${o.order_id}, this.value)" title="Change Order Status">
+                <option value="Confirmed" ${currentStatus === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
+                <option value="On Transit" ${currentStatus === 'On Transit' ? 'selected' : ''}>On Transit</option>
+                <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                <option value="Cancelled" ${currentStatus === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+              </select>
+            </td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
       }
     }
 
     // Panel 2: Full Books CRUD Table
     this.renderAdminBooksTable(data.books || []);
 
-    // Panel 3: Full Orders Table
+    // Panel 3: Full Orders Table (with manual Status selector)
     const ordersTbody = document.getElementById('admin-orders-tbody');
     if (ordersTbody) {
       const orders = data.recent_orders || [];
       if (orders.length === 0) {
         ordersTbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--ink-muted); padding: 24px;">No customer orders placed yet.</td></tr>';
       } else {
-        ordersTbody.innerHTML = orders.map(o => `
+        ordersTbody.innerHTML = orders.map(o => {
+          const currentStatus = o.order_status || o.status || 'Confirmed';
+          const statusClass = currentStatus.toLowerCase().replace(/\s+/g, '-');
+          return `
           <tr>
-            <td><strong style="font-family: var(--font-mono); color: var(--burnt-orange);">${escapeHtml(o.order_number)}</strong></td>
+            <td><strong style="font-family: var(--font-mono); color: var(--burnt-orange);">${escapeHtml(o.order_code || o.order_number)}</strong></td>
             <td><strong>${escapeHtml(o.customer_name)}</strong></td>
             <td>${escapeHtml(o.customer_phone || 'N/A')}</td>
-            <td>${escapeHtml(o.delivery_district || 'Dhaka')}</td>
+            <td>${escapeHtml(o.district || o.delivery_district || 'Dhaka')}</td>
             <td>${o.items_count || 1} titles</td>
             <td><strong style="font-family: var(--font-mono);">৳${parseFloat(o.total_amount).toFixed(2)}</strong></td>
             <td><span class="pay-pill">${escapeHtml(o.payment_method)}</span></td>
-            <td><span class="status-badge status-${(o.status || 'processing').toLowerCase()}">${escapeHtml(o.status)}</span></td>
+            <td>
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <span class="status-badge status-${statusClass}">${escapeHtml(currentStatus)}</span>
+                <select class="order-status-select" onchange="App.updateOrderStatus(${o.order_id}, this.value)" title="Manually update order status">
+                  <option value="Confirmed" ${currentStatus === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
+                  <option value="On Transit" ${currentStatus === 'On Transit' ? 'selected' : ''}>On Transit</option>
+                  <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                  <option value="Cancelled" ${currentStatus === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                </select>
+              </div>
+            </td>
             <td style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(o.created_at || '')}</td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
       }
     }
 
@@ -1033,6 +1058,29 @@ const App = {
       }
     } catch (err) {
       showToast('Network error restocking book.', 'error');
+    }
+  },
+
+  async updateOrderStatus(orderId, newStatus) {
+    if (!Auth.isAdmin()) {
+      showToast('Access restricted: Administrator only.', 'error');
+      return;
+    }
+    try {
+      const res = await fetch('/api/orders/update-status', {
+        method: 'POST',
+        headers: this.getAdminHeaders(),
+        body: JSON.stringify({ order_id: orderId, status: newStatus })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message || `Order status updated to "${newStatus}".`, 'success');
+        this.openAdminDashboard();
+      } else {
+        showToast(data.message || 'Error updating order status.', 'error');
+      }
+    } catch (err) {
+      showToast('Network error updating order status.', 'error');
     }
   }
 };

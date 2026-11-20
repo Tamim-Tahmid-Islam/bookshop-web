@@ -2592,6 +2592,40 @@ input:checked + .slider:before {
   color: #065F46;
 }
 
+.status-badge.status-confirmed {
+  background: #E8F5E9;
+  color: #1B5E20;
+}
+
+.status-badge.status-on-transit {
+  background: #E0F2FE;
+  color: #0369A1;
+}
+
+.status-badge.status-cancelled {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.order-status-select {
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--cream-border);
+  background: #FFFFFF;
+  color: var(--ink-charcoal);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+}
+
+.order-status-select:focus {
+  border-color: var(--burnt-orange);
+  box-shadow: 0 0 0 2px rgba(217, 84, 30, 0.15);
+}
+
 .status-badge.status-low {
   background: #FEE2E2;
   color: #DC2626;

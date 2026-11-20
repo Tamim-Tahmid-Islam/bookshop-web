@@ -781,6 +781,7 @@ class DatabaseAdapter:
             conn.close()
             return {
                 'success': True,
+                'order_id': order_id,
                 'order_code': order_code,
                 'total_amount': total_amount,
                 'subtotal': subtotal,
@@ -968,11 +969,11 @@ class DatabaseAdapter:
             return {'success': False, 'message': str(e)}
 
     def update_book(self, book_id: int, data: dict):
-        """Updates book metadata with transaction safety and audit logging."""
+        """Updates book metadata with transaction safety and audit logging. Supports partial updates like restock."""
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT price, stock_qty FROM books WHERE book_id = ? AND is_deleted = 0", (book_id,))
+            cursor.execute("SELECT * FROM books WHERE book_id = ? AND is_deleted = 0", (book_id,))
             existing = cursor.fetchone()
             if not existing:
                 conn.close()
@@ -982,6 +983,18 @@ class DatabaseAdapter:
             old_stock = int(existing['stock_qty'])
             new_price = float(data.get('price', old_price))
             new_stock = int(data.get('stock_qty', old_stock))
+
+            isbn = data.get('isbn', existing['isbn'])
+            title = data.get('title', existing['title'])
+            subtitle = data.get('subtitle', existing['subtitle'] or '')
+            publisher_id = int(data.get('publisher_id', existing['publisher_id'] or 1))
+            category_id = int(data.get('category_id', existing['category_id'] or 1))
+            discount_pct = float(data.get('discount_pct', existing['discount_pct'] or 0))
+            pub_year = int(data.get('publication_year', existing['publication_year'] or 2024))
+            page_count = int(data.get('page_count', existing['page_count'] or 300))
+            language = data.get('language', existing['language'] or 'English')
+            cover_image = data.get('cover_image', existing['cover_image'] or '')
+            description = data.get('description', existing['description'] or '')
 
             cursor.execute("""
                 UPDATE books SET
@@ -1001,12 +1014,12 @@ class DatabaseAdapter:
                     updated_at = CURRENT_TIMESTAMP
                 WHERE book_id = ?
             """, (
-                data['isbn'], data['title'], data.get('subtitle', ''),
-                int(data.get('publisher_id', 1)), int(data.get('category_id', 1)),
-                new_price, float(data.get('discount_pct', 0)),
-                new_stock, int(data.get('publication_year', 2024)),
-                int(data.get('page_count', 300)), data.get('language', 'English'),
-                data.get('cover_image', ''), data.get('description', ''),
+                isbn, title, subtitle,
+                publisher_id, category_id,
+                new_price, discount_pct,
+                new_stock, pub_year,
+                page_count, language,
+                cover_image, description,
                 book_id
             ))
 
@@ -1014,15 +1027,49 @@ class DatabaseAdapter:
                 cursor.execute("UPDATE book_authors SET author_id = ? WHERE book_id = ? AND is_primary = 1",
                                (int(data['author_id']), book_id))
 
+            action_name = 'RESTOCK' if (old_stock != new_stock and old_price == new_price) else 'UPDATE'
             cursor.execute("""
                 INSERT INTO book_audit_log (book_id, action, changed_by, old_price, new_price, old_stock, new_stock)
-                VALUES (?, 'UPDATE', 'Admin', ?, ?, ?, ?)
-            """, (book_id, old_price, new_price, old_stock, new_stock))
+                VALUES (?, ?, 'Admin', ?, ?, ?, ?)
+            """, (book_id, action_name, old_price, new_price, old_stock, new_stock))
 
             conn.commit()
             conn.close()
-            return {'success': True, 'book_id': book_id, 'message': f'Book "{data["title"]}" updated successfully.'}
+            return {'success': True, 'book_id': book_id, 'message': f'Book "{title}" updated successfully.'}
         except Exception as e:
+            conn.rollback()
+            conn.close()
+            return {'success': False, 'message': str(e)}
+
+    def update_order_status(self, order_id: int, new_status: str):
+        """Updates the status of an order (Confirmed, On Transit, Delivered, Cancelled)."""
+        valid_statuses = ['Confirmed', 'On Transit', 'Delivered', 'Cancelled']
+        if new_status not in valid_statuses:
+            return {'success': False, 'message': f"Invalid status '{new_status}'. Allowed: {', '.join(valid_statuses)}"}
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT order_id, order_code FROM orders WHERE order_id = ?", (order_id,))
+            order = cursor.fetchone()
+            if not order:
+                conn.close()
+                return {'success': False, 'message': f'Order #{order_id} not found.'}
+
+            cursor.execute("UPDATE orders SET order_status = ? WHERE order_id = ?",
+                           (new_status, order_id))
+            conn.commit()
+            conn.close()
+            return {
+                'success': True,
+                'order_id': order_id,
+                'order_code': order['order_code'],
+                'status': new_status,
+                'message': f"Order #{order['order_code']} status changed to '{new_status}'."
+            }
+        except Exception as e:
+            conn.close()
+            return {'success': False, 'message': str(e)}
             conn.rollback()
             conn.close()
             return {'success': False, 'message': str(e)}
@@ -1092,6 +1139,17 @@ class DatabaseAdapter:
         """)
         all_books = [dict(r) for r in cursor.fetchall()]
 
+        # 8. Active Password Resets (Auditing & Admin Verification)
+        cursor.execute("""
+            SELECT r.reset_id, r.user_id, u.email, u.full_name, r.reset_code, r.expires_at, r.is_used, r.created_at
+            FROM password_resets r
+            INNER JOIN users u ON r.user_id = u.user_id
+            WHERE r.is_used = 0
+            ORDER BY r.created_at DESC
+            LIMIT 5
+        """)
+        active_resets = [dict(r) for r in cursor.fetchall()]
+
         conn.close()
         return {
             'metrics': {
@@ -1104,7 +1162,8 @@ class DatabaseAdapter:
             },
             'recent_orders': recent_orders,
             'low_stock_items': low_stock_items,
-            'books': all_books
+            'books': all_books,
+            'active_resets': active_resets
         }
 
 

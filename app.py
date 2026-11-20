@@ -277,7 +277,7 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
             if res['success']:
                 customer_email = body.get('customer_email') or body.get('email', '')
                 if customer_email:
-                    mailer.send_order_confirmation_email(
+                    email_result = mailer.send_order_confirmation_email(
                         to_email=customer_email,
                         customer_name=body.get('customer_name', 'Customer'),
                         order_code=res['order_code'],
@@ -286,7 +286,29 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                         payment_method=body.get('payment_method', 'Cash on Delivery'),
                         items=body.get('items', [])
                     )
+                    # Automatically mark status as Confirmed upon sending order confirmation email
+                    if res.get('order_id'):
+                        db.update_order_status(res['order_id'], 'Confirmed')
             self._send_json(201 if res['success'] else 400, res)
+            return
+
+        # 6.1 API: Update Order Status (Admin only)
+        if path == '/api/orders/update-status':
+            admin_email = self.headers.get('X-Admin-Email', '').strip().lower()
+            admin_role = self.headers.get('X-Admin-Role', '').strip()
+            if admin_email != 'tamimtahmid270@gmail.com' or admin_role != 'Admin':
+                self._send_json(403, {'success': False, 'message': 'Access forbidden: Admin access only.'})
+                return
+            try:
+                order_id = int(body.get('order_id', 0))
+            except (ValueError, TypeError):
+                order_id = 0
+            new_status = body.get('status', '').strip()
+            if not order_id or not new_status:
+                self._send_json(400, {'success': False, 'message': 'order_id and status are required.'})
+                return
+            res = db.update_order_status(order_id, new_status)
+            self._send_json(200 if res['success'] else 400, res)
             return
 
         self._send_json(404, {'error': 'Endpoint not found'})
