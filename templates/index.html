@@ -624,6 +624,29 @@
                 </table>
               </div>
             </div>
+
+            <!-- Customer Inquiries & Support Queries Box -->
+            <div class="admin-snapshot-box" style="grid-column: 1 / -1; margin-top: 8px;">
+              <div class="snapshot-header">
+                <h4>💬 Customer Support &amp; Book Inquiries (Submitted via Floating Help Widget)</h4>
+              </div>
+              <div class="snapshot-table-wrapper">
+                <table class="admin-data-table">
+                  <thead>
+                    <tr>
+                      <th>Customer Name</th>
+                      <th>Email / Contact</th>
+                      <th>Inquiry Topic</th>
+                      <th>Message Details</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-queries-tbody">
+                    <!-- Dynamic -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1040,21 +1063,97 @@
     </div>
   </div>
 
+  <!-- Customer Support & Inquiry Modal -->
+  <div id="customer-query-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 540px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--burnt-orange);">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            Customer Support &amp; Inquiry
+          </h3>
+          <p style="font-size: 13px; color: var(--taupe-muted); margin-top: 4px; line-height: 1.4;">
+            Have a question or looking for a specific book? Send us your inquiry and our desk will respond via email.
+          </p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="App.closeQueryModal()" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="customer-query-form" onsubmit="App.handleQuerySubmit(event)">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="query-name">Full Name <span style="color: var(--burnt-orange);">*</span></label>
+              <input type="text" id="query-name" class="form-input" placeholder="e.g. Tamim Tahmid" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="query-phone">Phone Number</label>
+              <input type="tel" id="query-phone" class="form-input" placeholder="01XXXXXXXXX" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="query-email">Your Email Address <span style="color: var(--burnt-orange);">*</span></label>
+            <input type="email" id="query-email" class="form-input" placeholder="e.g. customer@example.com" required />
+            <small style="font-size: 11px; color: var(--taupe-muted); display: block; margin-top: 4px;">A confirmation receipt and reply will be sent to this email address.</small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="query-topic">Inquiry Topic <span style="color: var(--burnt-orange);">*</span></label>
+            <select id="query-topic" class="form-select" required>
+              <option value="" disabled selected>Select an inquiry topic...</option>
+              <option value="Book Availability / Special Edition Request">Book Availability / Special Edition Request</option>
+              <option value="Order Tracking &amp; Delivery Update">Order Tracking &amp; Delivery Update</option>
+              <option value="Payment &amp; Digital Transaction Query">Payment &amp; Digital Transaction Query</option>
+              <option value="Curated Reading Recommendations">Curated Reading Recommendations</option>
+              <option value="Bulk / Institutional Book Orders">Bulk / Institutional Book Orders</option>
+              <option value="General Feedback &amp; Suggestions">General Feedback &amp; Suggestions</option>
+              <option value="Other Queries">Other Queries</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="query-message">Inquiry Details <span style="color: var(--burnt-orange);">*</span></label>
+            <textarea id="query-message" class="form-input" rows="4" style="resize: vertical; font-family: inherit; line-height: 1.5;" placeholder="Please describe your query, required titles, ISBN, or questions..." required></textarea>
+          </div>
+
+          <div id="query-feedback" style="display: none; padding: 12px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;"></div>
+
+          <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+            <button type="button" class="btn btn-secondary" onclick="App.closeQueryModal()">Cancel</button>
+            <button type="submit" id="query-submit-btn" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              <span>Send Query</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating Help & Query Circular Button (Right Edge) -->
-  <a href="mailto:tamimtahmid270@gmail.com?subject=PageVault%20Inquiry%20%2F%20Book%20Query" 
-     class="floating-help-btn" 
-     id="floating-help-btn" 
-     title="Need Help or Query? Email Support">
+  <button type="button" 
+          class="floating-help-btn" 
+          id="floating-help-btn" 
+          title="Have an Inquiry or Query? Click to Send Message"
+          onclick="App.openQueryModal()"
+          aria-label="Open support and inquiry modal">
     <svg class="help-btn-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="10"></circle>
       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
       <line x1="12" y1="17" x2="12.01" y2="17"></line>
     </svg>
     <span class="help-tooltip">
-      <strong>Need Help or Query?</strong><br />
-      tamimtahmid270@gmail.com
+      <strong>Have a Query?</strong><br />
+      Click to send us a direct message
     </span>
-  </a>
+  </button>
 
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>

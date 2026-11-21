@@ -1699,6 +1699,9 @@ input:checked + .slider:before {
   width: 54px;
   height: 54px;
   border-radius: 50%;
+  border: none;
+  outline: none;
+  padding: 0;
   background: var(--burnt-orange);
   color: #FFFFFF;
   display: flex;

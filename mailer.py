@@ -378,3 +378,165 @@ The PageVault Team
         log_to_outbox(to_email, subject, f"Order #{order_code}", False, "Logged order confirmation (SMTP credentials not yet set)")
         print(f"[Mailer] Logged order confirmation for {to_email} to email_outbox.log")
         return {'delivered': False, 'method': 'outbox_logged'}
+
+
+def send_support_query_email(customer_name: str, customer_email: str, customer_phone: str, topic: str, message: str) -> dict:
+    """
+    Sends customer support inquiry to admin email (tamimtahmid270@gmail.com)
+    and sends an auto-reply receipt to the customer's email.
+    """
+    admin_recipient = "tamimtahmid270@gmail.com"
+    cfg = load_email_config()
+    sender_email = cfg.get('sender_email') or admin_recipient
+    sender_name = cfg.get('sender_name') or "PageVault Support"
+    brevo_key = os.environ.get('BREVO_API_KEY', '').strip()
+
+    admin_subject = f"[Support Inquiry] {topic} - from {customer_name}"
+    admin_text = f"""New Customer Inquiry Received on PageVault:
+
+Customer Name: {customer_name}
+Customer Email: {customer_email}
+Customer Phone: {customer_phone or 'Not provided'}
+Topic: {topic}
+
+Message:
+{message}
+
+Sent via PageVault Help Desk.
+"""
+    admin_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #F3EEE3; padding: 24px; color: #111;">
+  <div style="max-width: 580px; margin: 0 auto; background: #FFF; border-radius: 14px; border: 1px solid #E2DAD0; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+    <div style="font-size: 22px; font-weight: 800; color: #111; margin-bottom: 8px;">Page<span style="color: #D9541E;">Vault</span> Support Desk</div>
+    <div style="display: inline-block; background: #EBF5FF; color: #1E40AF; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 12px; margin-bottom: 20px;">New Customer Inquiry</div>
+    
+    <div style="background: #FAF7F2; border: 1px solid #E2DAD0; border-radius: 10px; padding: 18px; margin-bottom: 20px; font-size: 14px; line-height: 1.8;">
+      <div><strong>Customer Name:</strong> {customer_name}</div>
+      <div><strong>Email:</strong> <a href="mailto:{customer_email}" style="color: #D9541E; font-weight: 600;">{customer_email}</a></div>
+      <div><strong>Phone:</strong> {customer_phone or 'Not provided'}</div>
+      <div><strong>Topic:</strong> <span style="font-weight: 700; color: #D9541E;">{topic}</span></div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <strong style="font-size: 14px; color: #111;">Message Details:</strong>
+      <div style="background: #FFF; border: 1px solid #E2DAD0; border-radius: 8px; padding: 16px; margin-top: 8px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; color: #222;">{message}</div>
+    </div>
+
+    <div style="font-size: 12px; color: #736C62; border-top: 1px solid #E2DAD0; padding-top: 16px;">
+      Reply directly to the customer at <a href="mailto:{customer_email}" style="color: #D9541E; font-weight: 600;">{customer_email}</a>.
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+    admin_delivered = False
+    delivery_method = 'outbox_logged'
+    status_detail = ''
+
+    # 1. Dispatch to Admin via Brevo HTTPS API if available
+    if brevo_key:
+        ok, detail = send_via_brevo_api(brevo_key, sender_email, sender_name, admin_recipient, admin_subject, admin_html, admin_text)
+        if ok:
+            admin_delivered = True
+            delivery_method = 'brevo_api'
+            log_to_outbox(admin_recipient, admin_subject, "Support Query", True, "Delivered via Brevo API")
+            print(f"[Mailer] Support inquiry sent to {admin_recipient} via Brevo API")
+        else:
+            status_detail = detail
+            log_to_outbox(admin_recipient, admin_subject, "Support Query", False, detail)
+            print(f"[Mailer] Brevo API support inquiry failed: {detail}")
+
+    # Fallback to SMTP for Admin
+    user = cfg.get('smtp_user', '').strip()
+    pw = cfg.get('smtp_password', '').replace(' ', '').strip()
+    if not admin_delivered and user and pw and pw.lower() != 'none':
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = admin_subject
+            msg['From'] = f"{sender_name} <{sender_email}>"
+            msg['To'] = admin_recipient
+            msg.attach(MIMEText(admin_text, 'plain', 'utf-8'))
+            msg.attach(MIMEText(admin_html, 'html', 'utf-8'))
+
+            server = smtplib.SMTP(cfg['smtp_host'], cfg['smtp_port'], timeout=12)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(user, pw)
+            server.sendmail(sender_email, [admin_recipient], msg.as_string())
+            server.quit()
+            admin_delivered = True
+            delivery_method = 'smtp'
+            log_to_outbox(admin_recipient, admin_subject, "Support Query", True, "Dispatched via SMTP")
+            print(f"[Mailer] Support inquiry sent to {admin_recipient} via SMTP")
+        except Exception as e:
+            status_detail = str(e)
+            log_to_outbox(admin_recipient, admin_subject, "Support Query", False, f"SMTP error: {e}")
+            print(f"[Mailer] SMTP support query error: {e}")
+
+    if not admin_delivered and not status_detail:
+        log_to_outbox(admin_recipient, admin_subject, "Support Query", False, "Inquiry recorded (Logged to outbox)")
+
+    # 2. Auto-reply confirmation to customer
+    if customer_email and '@' in customer_email:
+        cust_subject = f"Inquiry Received: {topic} - PageVault Support"
+        cust_text = f"""Hello {customer_name},
+
+Thank you for reaching out to PageVault Support!
+We have received your query regarding "{topic}". Our customer team is reviewing your request and will respond shortly.
+
+Your Message:
+"{message}"
+
+Warm regards,
+PageVault Support Team
+tamimtahmid270@gmail.com
+"""
+        cust_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #F3EEE3; padding: 24px; color: #111;">
+  <div style="max-width: 540px; margin: 0 auto; background: #FFF; border-radius: 14px; border: 1px solid #E2DAD0; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+    <div style="font-size: 22px; font-weight: 800; color: #111; margin-bottom: 12px; text-align: center;">Page<span style="color: #D9541E;">Vault</span> Support</div>
+    <p style="font-size: 15px; line-height: 1.6;">Hello <strong>{customer_name}</strong>,</p>
+    <p style="font-size: 14px; line-height: 1.6; color: #444;">
+      Thank you for reaching out to us! We have received your query regarding <strong>&ldquo;{topic}&rdquo;</strong>. Our customer support team is reviewing your message and will respond as soon as possible.
+    </p>
+    <div style="background: #FAF7F2; border-left: 4px solid #D9541E; padding: 14px; margin: 20px 0; font-size: 13px; font-style: italic; color: #555;">
+      &ldquo;{message}&rdquo;
+    </div>
+    <p style="font-size: 13px; color: #736C62;">If you need urgent assistance, you can also reach us directly at <a href="mailto:tamimtahmid270@gmail.com" style="color: #D9541E; font-weight: 600;">tamimtahmid270@gmail.com</a>.</p>
+    <div style="font-size: 12px; color: #999; border-top: 1px solid #E2DAD0; padding-top: 14px; text-align: center; margin-top: 24px;">&copy; 2026 PageVault &bull; Dhaka, Bangladesh</div>
+  </div>
+</body>
+</html>
+"""
+        if brevo_key:
+            send_via_brevo_api(brevo_key, sender_email, sender_name, customer_email, cust_subject, cust_html, cust_text)
+        elif admin_delivered and delivery_method == 'smtp' and user and pw:
+            try:
+                cmsg = MIMEMultipart('alternative')
+                cmsg['Subject'] = cust_subject
+                cmsg['From'] = f"{sender_name} <{sender_email}>"
+                cmsg['To'] = customer_email
+                cmsg.attach(MIMEText(cust_text, 'plain', 'utf-8'))
+                cmsg.attach(MIMEText(cust_html, 'html', 'utf-8'))
+                server = smtplib.SMTP(cfg['smtp_host'], cfg['smtp_port'], timeout=12)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(user, pw)
+                server.sendmail(sender_email, [customer_email], cmsg.as_string())
+                server.quit()
+            except Exception:
+                pass
+
+    return {
+        'delivered': admin_delivered,
+        'method': delivery_method,
+        'message': 'Your inquiry has been submitted and sent to PageVault Support.'
+    }
+

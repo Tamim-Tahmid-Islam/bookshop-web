@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg_15" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#064E3B"/>
+      <stop offset="100%" stop-color="#022C22"/>
+    </linearGradient>
+    <linearGradient id="acc_15" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="400" height="600" fill="url(#bg_15)" rx="8"/>
+  <!-- Border -->
+  <rect x="18" y="18" width="364" height="564" fill="none" stroke="url(#acc_15)" stroke-width="1.8" rx="4" opacity="0.65"/>
+  <rect x="24" y="24" width="352" height="552" fill="none" stroke="url(#acc_15)" stroke-width="0.8" rx="3" opacity="0.25"/>
+  <!-- Spine Depth -->
+  <line x1="36" y1="18" x2="36" y2="582" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+  <line x1="39" y1="18" x2="39" y2="582" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
+  <!-- Category Badge -->
+  <rect x="55" y="46" width="160" height="24" rx="4" fill="rgba(255,255,255,0.08)"/>
+  <text x="135" y="62" fill="#34D399" font-family="'Segoe UI', sans-serif" font-size="10.5" font-weight="700" letter-spacing="1.2" text-anchor="middle">COMPUTER SCIENCE</text>
+  <!-- Book Title -->
+  <text x="55" y="175" fill="#FFFFFF" font-family="'Cinzel', Georgia, serif" font-size="28" font-weight="700">
+    <tspan x="55" dy="0">The Pragmatic Programmer</tspan>
+  </text>
+  <!-- Subtitle -->
+  <text x="55" y="227" fill="#94A3B8" font-family="'Segoe UI', sans-serif" font-size="13" font-weight="500">20th Anniversary Edition</text>
+  <!-- Ornament divider -->
+  <g transform="translate(55, 340)">
+    <line x1="0" y1="0" x2="110" y2="0" stroke="url(#acc_15)" stroke-width="1.5" opacity="0.7"/>
+    <circle cx="125" cy="0" r="4" fill="#34D399"/>
+    <line x1="140" y1="0" x2="250" y2="0" stroke="url(#acc_15)" stroke-width="1.5" opacity="0.7"/>
+  </g>
+  <!-- Author Section -->
+  <text x="55" y="475" fill="#34D399" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">AUTHOR</text>
+  <text x="55" y="504" fill="#FFFFFF" font-family="'Cinzel', Georgia, serif" font-size="19" font-weight="700">Martin Fowler</text>
+  <!-- Imprint -->
+  <text x="345" y="552" fill="#64748B" font-family="'Segoe UI', sans-serif" font-size="10" font-weight="700" text-anchor="end">PAGEVAULT &bull; 2019</text>
+</svg>

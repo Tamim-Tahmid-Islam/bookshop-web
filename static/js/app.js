@@ -1181,6 +1181,28 @@ const App = {
       }
     }
 
+    // Overview: Customer Support Queries
+    const queriesTbody = document.getElementById('overview-queries-tbody');
+    if (queriesTbody) {
+      const queries = data.recent_queries || [];
+      if (queries.length === 0) {
+        queriesTbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--ink-muted); padding: 14px;">No customer inquiries received yet.</td></tr>';
+      } else {
+        queriesTbody.innerHTML = queries.map(q => `
+          <tr>
+            <td><strong>${escapeHtml(q.customer_name)}</strong></td>
+            <td>
+              <div><a href="mailto:${escapeHtml(q.customer_email)}" style="color: var(--burnt-orange); font-weight: 600;">${escapeHtml(q.customer_email)}</a></div>
+              ${q.customer_phone ? `<div style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(q.customer_phone)}</div>` : ''}
+            </td>
+            <td><span class="book-category-tag">${escapeHtml(q.topic)}</span></td>
+            <td style="max-width: 280px; font-size: 0.82rem; line-height: 1.4; color: var(--ink-base);">${escapeHtml(q.message)}</td>
+            <td style="font-size: 0.78rem; color: var(--ink-faint); white-space: nowrap;">${escapeHtml(q.created_at || '')}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
     // Panel 2: Full Books CRUD Table
     this.renderAdminBooksTable(data.books || []);
 
@@ -1553,6 +1575,110 @@ const App = {
     } catch (err) {
       showToast('Network error updating order status.', 'error');
     }
+  },
+
+  openQueryModal() {
+    const modal = document.getElementById('customer-query-modal');
+    if (!modal) return;
+    const form = document.getElementById('customer-query-form');
+    if (form) form.reset();
+    const alertBox = document.getElementById('query-feedback');
+    if (alertBox) alertBox.style.display = 'none';
+
+    // Autofill user info if logged in
+    const user = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+    if (user) {
+      const nameInput = document.getElementById('query-name');
+      const emailInput = document.getElementById('query-email');
+      if (nameInput && !nameInput.value) nameInput.value = user.full_name || user.username || '';
+      if (emailInput && !emailInput.value) emailInput.value = user.email || '';
+    }
+
+    modal.classList.add('active');
+  },
+
+  closeQueryModal() {
+    const modal = document.getElementById('customer-query-modal');
+    if (modal) modal.classList.remove('active');
+  },
+
+  async handleQuerySubmit(event) {
+    if (event) event.preventDefault();
+    const name = (document.getElementById('query-name')?.value || '').trim();
+    const email = (document.getElementById('query-email')?.value || '').trim();
+    const phone = (document.getElementById('query-phone')?.value || '').trim();
+    const topic = (document.getElementById('query-topic')?.value || '').trim();
+    const message = (document.getElementById('query-message')?.value || '').trim();
+    const submitBtn = document.getElementById('query-submit-btn');
+    const alertBox = document.getElementById('query-feedback');
+
+    if (!name || !email || !topic || !message) {
+      if (alertBox) {
+        alertBox.className = 'alert-danger';
+        alertBox.style.background = '#FEE2E2';
+        alertBox.style.color = '#B91C1C';
+        alertBox.style.border = '1px solid #FCA5A5';
+        alertBox.style.display = 'block';
+        alertBox.textContent = 'Please fill in all required fields (Name, Email, Topic, Details).';
+      }
+      return;
+    }
+
+    const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Sending Message...</span>';
+    }
+
+    try {
+      const res = await fetch('/api/support/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, topic, message })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('Your inquiry has been dispatched to our support desk!', 'success');
+        if (alertBox) {
+          alertBox.className = 'alert-success';
+          alertBox.style.background = '#ECFDF5';
+          alertBox.style.color = '#065F46';
+          alertBox.style.border = '1px solid #A7F3D0';
+          alertBox.style.display = 'block';
+          alertBox.innerHTML = `<strong>Inquiry Sent!</strong> We have emailed PageVault Support (tamimtahmid270@gmail.com) and dispatched a confirmation to your email (${escapeHtml(email)}).`;
+        }
+        setTimeout(() => {
+          this.closeQueryModal();
+        }, 2200);
+      } else {
+        const errMsg = data.message || 'Could not send inquiry. Please try again.';
+        if (alertBox) {
+          alertBox.className = 'alert-danger';
+          alertBox.style.background = '#FEE2E2';
+          alertBox.style.color = '#B91C1C';
+          alertBox.style.border = '1px solid #FCA5A5';
+          alertBox.style.display = 'block';
+          alertBox.textContent = errMsg;
+        }
+        showToast(errMsg, 'error');
+      }
+    } catch (err) {
+      console.error('[Support Query]', err);
+      showToast('Network error while dispatching your inquiry.', 'error');
+      if (alertBox) {
+        alertBox.className = 'alert-danger';
+        alertBox.style.background = '#FEE2E2';
+        alertBox.style.color = '#B91C1C';
+        alertBox.style.border = '1px solid #FCA5A5';
+        alertBox.style.display = 'block';
+        alertBox.textContent = 'Network communication error. Please try again.';
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+    }
   }
 };
 
@@ -1577,22 +1703,13 @@ function showToast(message, type = 'info') {
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
 
-  // Page Loader — only show once per session
+  // Page Loader — show on every page load and refresh as requested
   const loader = document.getElementById('page-loader');
   if (loader) {
-    const hasSeenLoader = sessionStorage.getItem('pv_loader_shown');
-    if (hasSeenLoader) {
-      // Skip animation on subsequent page loads within the same session
-      loader.remove();
+    setTimeout(() => {
+      loader.classList.add('loaded');
       document.body.classList.add('page-revealed');
-    } else {
-      // Show editorial reveal animation
-      sessionStorage.setItem('pv_loader_shown', '1');
-      setTimeout(() => {
-        loader.classList.add('loaded');
-        document.body.classList.add('page-revealed');
-        setTimeout(() => loader.remove(), 700);
-      }, 2000);
-    }
+      setTimeout(() => loader.remove(), 700);
+    }, 1800);
   }
 });

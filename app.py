@@ -312,6 +312,44 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json(200 if res['success'] else 400, res)
             return
 
+        # 7. API: Customer Support Query (Dispatches email to tamimtahmid270@gmail.com)
+        if path == '/api/support/query':
+            customer_name = (body.get('name') or body.get('customer_name') or '').strip()
+            customer_email = (body.get('email') or body.get('customer_email') or '').strip()
+            customer_phone = (body.get('phone') or body.get('customer_phone') or '').strip()
+            topic = (body.get('topic') or '').strip()
+            message = (body.get('message') or '').strip()
+
+            if not customer_name or not customer_email or not topic or not message:
+                self._send_json(400, {'success': False, 'message': 'Name, email, topic, and message details are required.'})
+                return
+
+            # Store in database
+            query_record = db.create_customer_query({
+                'customer_name': customer_name,
+                'customer_email': customer_email,
+                'customer_phone': customer_phone,
+                'topic': topic,
+                'message': message
+            })
+
+            # Dispatch email using customer information to designated support email
+            email_res = mailer.send_support_query_email(
+                customer_name=customer_name,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                topic=topic,
+                message=message
+            )
+
+            self._send_json(200, {
+                'success': True,
+                'message': 'Thank you! Your query has been submitted and an email notification has been dispatched.',
+                'query_id': query_record.get('query_id'),
+                'delivered': email_res.get('delivered', False)
+            })
+            return
+
         self._send_json(404, {'error': 'Endpoint not found'})
 
     def do_PUT(self):
