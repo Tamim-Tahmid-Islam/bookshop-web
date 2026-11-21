@@ -1,13 +1,12 @@
 # 📚 PageVault — Online Bookshop & Inventory Management System
 
-[![Live Demo](https://img.shields.io/badge/Live_Website-Render-00c7b7?style=for-the-badge&logo=render&logoColor=white)](https://pagevault.onrender.com)
+[![Live Demo](https://img.shields.io/badge/Live_Website-Render-00c7b7?style=for-the-badge&logo=render&logoColor=white)](https://pagevault-ycl2.onrender.com)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Tamim-Tahmid-Islam/bookshop-web)
 [![Python Runtime](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Database Dual Mode](https://img.shields.io/badge/Database-SQLite3%20%7C%20MySQL%208.0-4479A1?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![License MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
-> **Live Website**: [https://pagevault.onrender.com](https://pagevault.onrender.com)  
-> *(Deployment Mirror: [https://bookshop-web.onrender.com](https://bookshop-web.onrender.com))*
+> **Live Website**: [https://pagevault-ycl2.onrender.com](https://pagevault-ycl2.onrender.com)
 
 PageVault is a full-stack, editorial online bookshop and catalog management web platform built in pure Python. It operates with zero mandatory third-party web frameworks, running on Python's built-in socket and HTTP server architecture while delivering an ultra-responsive client interface, transactional order processing, and dual-mode database support.
 
@@ -29,7 +28,7 @@ PageVault is a full-stack, editorial online bookshop and catalog management web 
 - **Floating Support Trigger**: Circular floating help button accessible from any page section.
 - **Interactive Inquiry Modal**: Dedicated modal enabling customers to submit inquiries with automatic user pre-fill, categorized topic dropdowns, and message composition.
 - **Real-Time Email Dispatch**:
-  - Automatically delivers inquiry notifications to the store desk (`tamimtahmid270@gmail.com`).
+  - Automatically delivers inquiry notifications to the store desk.
   - Sends a confirmation auto-reply to the customer's email address.
   - Supports Brevo HTTPS REST API (port 443 compatible with cloud hosts) and standard SMTP.
   - Persists inquiries to the `customer_queries` database table for admin review.
@@ -74,7 +73,7 @@ PageVault is a full-stack, editorial online bookshop and catalog management web 
          v             v           v
     +---------+   +----------+  +-------------------------------+
     | SQLite  |   | MySQL 8  |  | Brevo API / SMTP Outbox Log   |
-    | (Local) |   | (Remote) |  | (tamimtahmid270@gmail.com)    |
+    | (Local) |   | (Remote) |  | (Store Support Desk)         |
     +---------+   +----------+  +-------------------------------+
 ```
 
@@ -188,9 +187,9 @@ This repository includes a native [`render.yaml`](render.yaml) blueprint for aut
 
 ## 🔐 Administrative Access
 
-- **Admin Email**: `tamimtahmid270@gmail.com`
 - **Role**: `Admin`
 - Access the management console by signing in with the designated administrator account and selecting **Admin Portal** from the user navigation menu.
+- Credentials can be configured securely in the environment or initialized upon database setup.
 
 ---
 
