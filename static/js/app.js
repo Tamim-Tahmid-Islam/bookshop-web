@@ -1287,6 +1287,35 @@ const App = {
       }
     }
 
+    // Overview: User Book Requests
+    const requestsTbody = document.getElementById('overview-requests-tbody');
+    if (requestsTbody) {
+      const requests = data.recent_requests || [];
+      if (requests.length === 0) {
+        requestsTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--ink-muted); padding: 14px;">No book requests submitted yet.</td></tr>';
+      } else {
+        requestsTbody.innerHTML = requests.map(r => `
+          <tr>
+            <td><strong style="color: var(--ink-black);">${escapeHtml(r.book_title)}</strong></td>
+            <td>
+              <div>${escapeHtml(r.author_name || 'Not specified')}</div>
+              ${r.isbn ? `<div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--ink-faint);">${escapeHtml(r.isbn)}</div>` : ''}
+            </td>
+            <td><strong>${escapeHtml(r.requester_name)}</strong></td>
+            <td>
+              <div><a href="mailto:${escapeHtml(r.requester_email)}" style="color: var(--burnt-orange); font-weight: 600;">${escapeHtml(r.requester_email)}</a></div>
+              ${r.requester_phone ? `<div style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(r.requester_phone)}</div>` : ''}
+            </td>
+            <td style="max-width: 240px; font-size: 0.82rem; line-height: 1.4; color: var(--ink-base);">
+              ${r.genre_or_topic ? `<span class="book-category-tag" style="margin-bottom: 4px; display: inline-block;">${escapeHtml(r.genre_or_topic)}</span><br>` : ''}
+              ${escapeHtml(r.notes || '')}
+            </td>
+            <td style="font-size: 0.78rem; color: var(--ink-faint); white-space: nowrap;">${escapeHtml(r.created_at || '')}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
     // Panel 2: Full Books CRUD Table
     this.renderAdminBooksTable(data.books || []);
 
@@ -1749,6 +1778,131 @@ const App = {
     } catch (err) {
       console.error('[Support Query]', err);
       showToast('Network error while dispatching your inquiry.', 'error');
+      if (alertBox) {
+        alertBox.className = 'alert-danger';
+        alertBox.style.background = '#FEE2E2';
+        alertBox.style.color = '#B91C1C';
+        alertBox.style.border = '1px solid #FCA5A5';
+        alertBox.style.display = 'block';
+        alertBox.textContent = 'Network communication error. Please try again.';
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+    }
+  },
+
+  openRequestBookModal(prefillTitle = '') {
+    const modal = document.getElementById('request-book-modal');
+    if (!modal) return;
+    const form = document.getElementById('request-book-form');
+    if (form) form.reset();
+    const alertBox = document.getElementById('request-book-feedback');
+    if (alertBox) alertBox.style.display = 'none';
+
+    if (prefillTitle) {
+      const titleInput = document.getElementById('req-book-title');
+      if (titleInput) titleInput.value = prefillTitle;
+    }
+
+    // Autofill user info if logged in
+    const user = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+    if (user) {
+      const nameInput = document.getElementById('req-name');
+      const emailInput = document.getElementById('req-email');
+      if (nameInput && !nameInput.value) nameInput.value = user.full_name || user.username || '';
+      if (emailInput && !emailInput.value) emailInput.value = user.email || '';
+    }
+
+    modal.classList.add('active');
+  },
+
+  closeRequestBookModal() {
+    const modal = document.getElementById('request-book-modal');
+    if (modal) modal.classList.remove('active');
+  },
+
+  async handleRequestBookSubmit(event) {
+    if (event) event.preventDefault();
+    const book_title = (document.getElementById('req-book-title')?.value || '').trim();
+    const author_name = (document.getElementById('req-author-name')?.value || '').trim();
+    const isbn = (document.getElementById('req-isbn')?.value || '').trim();
+    const requester_name = (document.getElementById('req-name')?.value || '').trim();
+    const requester_phone = (document.getElementById('req-phone')?.value || '').trim();
+    const requester_email = (document.getElementById('req-email')?.value || '').trim();
+    const genre_or_topic = (document.getElementById('req-genre')?.value || '').trim();
+    const notes = (document.getElementById('req-notes')?.value || '').trim();
+    const submitBtn = document.getElementById('request-book-submit-btn');
+    const alertBox = document.getElementById('request-book-feedback');
+
+    if (!book_title || !requester_name || !requester_email) {
+      if (alertBox) {
+        alertBox.className = 'alert-danger';
+        alertBox.style.background = '#FEE2E2';
+        alertBox.style.color = '#B91C1C';
+        alertBox.style.border = '1px solid #FCA5A5';
+        alertBox.style.display = 'block';
+        alertBox.textContent = 'Please fill in the required fields (Book Title, Your Name, Email Address).';
+      }
+      return;
+    }
+
+    const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Submitting Request...</span>';
+    }
+
+    const user = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+    const user_id = user ? user.user_id : null;
+
+    try {
+      const res = await fetch('/api/book-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          book_title,
+          author_name,
+          isbn,
+          requester_name,
+          requester_phone,
+          requester_email,
+          genre_or_topic,
+          notes,
+          user_id
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('Your book request has been submitted!', 'success');
+        if (alertBox) {
+          alertBox.className = 'alert-success';
+          alertBox.style.background = '#ECFDF5';
+          alertBox.style.color = '#065F46';
+          alertBox.style.border = '1px solid #A7F3D0';
+          alertBox.style.display = 'block';
+          alertBox.innerHTML = `<strong>Request Received!</strong> We have queued &ldquo;${escapeHtml(book_title)}&rdquo; for catalog sourcing. A confirmation email was dispatched to ${escapeHtml(requester_email)}.`;
+        }
+        setTimeout(() => {
+          this.closeRequestBookModal();
+        }, 2400);
+      } else {
+        const errMsg = data.message || 'Could not submit your request. Please try again.';
+        if (alertBox) {
+          alertBox.className = 'alert-danger';
+          alertBox.style.background = '#FEE2E2';
+          alertBox.style.color = '#B91C1C';
+          alertBox.style.border = '1px solid #FCA5A5';
+          alertBox.style.display = 'block';
+          alertBox.textContent = errMsg;
+        }
+        showToast(errMsg, 'error');
+      }
+    } catch (err) {
+      console.error('[Book Request]', err);
+      showToast('Network error while submitting your request.', 'error');
       if (alertBox) {
         alertBox.className = 'alert-danger';
         alertBox.style.background = '#FEE2E2';

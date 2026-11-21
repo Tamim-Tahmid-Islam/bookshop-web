@@ -66,7 +66,7 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
         # 1.1 API: Live Search Suggestions (Typeahead Dropdown)
         if path == '/api/suggestions':
             q = flat_params.get('q', '')
-            suggestions = db.get_live_suggestions(q)
+            suggestions = db.get_live_suggestions(q, limit=6, filters=flat_params)
             self._send_json(200, {'suggestions': suggestions})
             return
 
@@ -115,6 +115,13 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             data = db.get_admin_dashboard_data()
             self._send_json(200, data)
+            return
+
+        # 3.3 API: Book Requests (Retrieves customer book requests)
+        if path == '/api/book-requests':
+            limit = int(flat_params.get('limit', 50))
+            requests = db.get_book_requests(limit=limit)
+            self._send_json(200, {'success': True, 'requests': requests})
             return
 
         # 4. API: Single Book details
@@ -353,6 +360,55 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'success': True,
                 'message': 'Thank you! Your query has been submitted and an email notification has been dispatched.',
                 'query_id': query_record.get('query_id'),
+                'delivered': email_res.get('delivered', False)
+            })
+            return
+
+        # 8. API: Book Request (Customer requests title not currently in catalog)
+        if path == '/api/book-requests':
+            book_title = (body.get('book_title') or body.get('title') or '').strip()
+            requester_name = (body.get('requester_name') or body.get('name') or '').strip()
+            requester_email = (body.get('requester_email') or body.get('email') or '').strip()
+            requester_phone = (body.get('requester_phone') or body.get('phone') or '').strip()
+            author_name = (body.get('author_name') or body.get('author') or '').strip()
+            isbn = (body.get('isbn') or '').strip()
+            genre_or_topic = (body.get('genre_or_topic') or body.get('genre') or '').strip()
+            notes = (body.get('notes') or '').strip()
+            user_id = body.get('user_id')
+
+            if not book_title or not requester_name or not requester_email:
+                self._send_json(400, {'success': False, 'message': 'Book title, your name, and email address are required.'})
+                return
+
+            # Store in database
+            req_record = db.create_book_request({
+                'user_id': user_id,
+                'requester_name': requester_name,
+                'requester_email': requester_email,
+                'requester_phone': requester_phone,
+                'book_title': book_title,
+                'author_name': author_name,
+                'isbn': isbn,
+                'genre_or_topic': genre_or_topic,
+                'notes': notes
+            })
+
+            # Dispatch notification to admin and auto-reply receipt to customer
+            email_res = mailer.send_book_request_email(
+                customer_name=requester_name,
+                customer_email=requester_email,
+                customer_phone=requester_phone,
+                book_title=book_title,
+                author_name=author_name,
+                isbn=isbn,
+                notes=notes,
+                genre_or_topic=genre_or_topic
+            )
+
+            self._send_json(200, {
+                'success': True,
+                'message': 'Your book request has been received and queued for catalog sourcing!',
+                'request_id': req_record.get('request_id'),
                 'delivered': email_res.get('delivered', False)
             })
             return

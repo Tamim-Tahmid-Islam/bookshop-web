@@ -235,6 +235,16 @@ const SearchEngine = {
       const term = e.target.value.trim();
       clearTimeout(this.debounceTimer);
 
+      if (term.length === 0) {
+        this.closeSuggestions();
+        if (this.state.q) {
+          this.state.q = '';
+          this.state.page = 1;
+          this.executeSearch();
+        }
+        return;
+      }
+
       if (term.length < 2) {
         this.closeSuggestions();
         return;
@@ -242,12 +252,33 @@ const SearchEngine = {
 
       this.debounceTimer = setTimeout(async () => {
         try {
-          const res = await fetch(`/api/suggestions?q=${encodeURIComponent(term)}`);
+          const suggParams = new URLSearchParams();
+          suggParams.set('q', term);
+          if (this.state.category_id) suggParams.set('category_id', this.state.category_id);
+          if (this.state.publisher_id) suggParams.set('publisher_id', this.state.publisher_id);
+          if (this.state.min_price) suggParams.set('min_price', this.state.min_price);
+          if (this.state.max_price) suggParams.set('max_price', this.state.max_price);
+          if (this.state.in_stock) suggParams.set('in_stock', '1');
+          if (this.state.popular) suggParams.set('popular', '1');
+          if (this.state.year_min) suggParams.set('year_min', this.state.year_min);
+          if (this.state.year_max) suggParams.set('year_max', this.state.year_max);
+          if (this.state.on_sale) suggParams.set('on_sale', '1');
+
+          const res = await fetch(`/api/suggestions?${suggParams.toString()}`);
           const data = await res.json();
           const suggestions = data.suggestions || [];
 
           if (suggestions.length === 0) {
-            dropdown.innerHTML = `<div style="padding: 12px; font-size: 0.85rem; color: #64748b; text-align: center;">No matching titles for "${escapeHtml(term)}"</div>`;
+            dropdown.innerHTML = `
+              <div style="padding: 14px; font-size: 0.85rem; color: #64748b; text-align: center;">
+                <div>No matching titles found for "${escapeHtml(term)}"</div>
+                <div style="margin-top: 8px;">
+                  <button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 5px 12px;" onclick="App.openRequestBookModal('${escapeQuote(term)}'); SearchEngine.closeSuggestions();">
+                    + Request This Book
+                  </button>
+                </div>
+              </div>
+            `;
             dropdown.style.display = 'block';
             return;
           }
@@ -262,7 +293,7 @@ const SearchEngine = {
               <div class="suggestion-price">৳${parseFloat(b.effective_price || b.price).toFixed(2)}</div>
             </div>
           `).join('') + `
-            <div class="suggestion-footer" onclick="SearchEngine.state.q = '${escapeQuote(term)}'; SearchEngine.executeSearch(); SearchEngine.closeSuggestions();">
+            <div class="suggestion-footer" onclick="SearchEngine.state.q = '${escapeQuote(term)}'; SearchEngine.state.page = 1; SearchEngine.executeSearch(); SearchEngine.closeSuggestions();">
               View all results for "${escapeHtml(term)}" →
             </div>
           `;
@@ -580,12 +611,24 @@ const SearchEngine = {
     }
 
     if (!books || books.length === 0) {
+      const queryTerm = (this.state.q || '').trim();
       grid.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
           <div class="empty-state-icon">📚</div>
-          <h3>No Books Found Matching Your Search</h3>
-          <p>Try loosening your search terms or clearing the category and price filters.</p>
-          <button class="auth-btn auth-btn-primary" onclick="SearchEngine.resetFilters()">Clear Filters</button>
+          <h3>No Books Found Matching Your Search Criteria</h3>
+          <p>We couldn't find any titles matching ${queryTerm ? `&ldquo;<strong>${escapeHtml(queryTerm)}</strong>&rdquo;` : 'your query'} under the current filter selection.</p>
+          <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 18px;">
+            <button class="auth-btn auth-btn-primary" onclick="SearchEngine.resetFilters()">Clear Filters</button>
+            <button class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px;" onclick="App.openRequestBookModal(${escapeQuote(queryTerm) ? `'${escapeQuote(queryTerm)}'` : "''"})">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                <line x1="12" y1="8" x2="12" y2="14"></line>
+                <line x1="9" y1="11" x2="15" y2="11"></line>
+              </svg>
+              <span>Request This Book</span>
+            </button>
+          </div>
         </div>
       `;
       return;

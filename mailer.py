@@ -540,3 +540,181 @@ tamimtahmid270@gmail.com
         'message': 'Your inquiry has been submitted and sent to PageVault Support.'
     }
 
+
+def send_book_request_email(customer_name: str, customer_email: str, customer_phone: str, book_title: str, author_name: str = "", isbn: str = "", notes: str = "", genre_or_topic: str = "") -> dict:
+    """
+    Sends customer book request notification to admin email (tamimtahmid270@gmail.com)
+    and sends an auto-reply receipt to the customer's email.
+    """
+    admin_recipient = "tamimtahmid270@gmail.com"
+    cfg = load_email_config()
+    sender_email = cfg.get('sender_email') or admin_recipient
+    sender_name = cfg.get('sender_name') or "PageVault Catalog Desk"
+    brevo_key = os.environ.get('BREVO_API_KEY', '').strip()
+
+    admin_subject = f"[Book Request] \"{book_title}\" - from {customer_name}"
+    admin_text = f"""New Book Request Received on PageVault:
+
+Requested Title: {book_title}
+Author / Creator: {author_name or 'Not specified'}
+ISBN / Edition: {isbn or 'Not specified'}
+Genre / Topic: {genre_or_topic or 'General'}
+
+Customer Information:
+Name: {customer_name}
+Email: {customer_email}
+Phone: {customer_phone or 'Not provided'}
+
+Additional Notes:
+{notes or 'None'}
+
+Sent via PageVault Catalog Request System.
+"""
+    admin_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #F3EEE3; padding: 24px; color: #111;">
+  <div style="max-width: 580px; margin: 0 auto; background: #FFF; border-radius: 14px; border: 1px solid #E2DAD0; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+    <div style="font-size: 22px; font-weight: 800; color: #111; margin-bottom: 8px;">Page<span style="color: #D9541E;">Vault</span> Catalog Desk</div>
+    <div style="display: inline-block; background: #FEF3C7; color: #92400E; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 12px; margin-bottom: 20px;">📖 New Customer Book Request</div>
+    
+    <div style="background: #FAF7F2; border-left: 4px solid #D9541E; padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;">
+      <div style="font-size: 18px; font-weight: 800; color: #111;">{book_title}</div>
+      <div style="font-size: 14px; color: #666; margin-top: 4px;">by <strong>{author_name or 'Unknown / Not specified'}</strong></div>
+      {f'<div style="font-size: 13px; color: #736C62; margin-top: 4px;">ISBN: {isbn}</div>' if isbn else ''}
+      {f'<div style="font-size: 13px; color: #736C62; margin-top: 2px;">Genre/Discipline: {genre_or_topic}</div>' if genre_or_topic else ''}
+    </div>
+
+    <div style="background: #FFF; border: 1px solid #E2DAD0; border-radius: 10px; padding: 18px; margin-bottom: 20px; font-size: 14px; line-height: 1.8;">
+      <div><strong>Customer Name:</strong> {customer_name}</div>
+      <div><strong>Email:</strong> <a href="mailto:{customer_email}" style="color: #D9541E; font-weight: 600;">{customer_email}</a></div>
+      <div><strong>Phone:</strong> {customer_phone or 'Not provided'}</div>
+      {f'<div><strong>Notes:</strong> {notes}</div>' if notes else ''}
+    </div>
+
+    <div style="font-size: 12px; color: #736C62; border-top: 1px solid #E2DAD0; padding-top: 16px;">
+      Reply directly to customer at <a href="mailto:{customer_email}" style="color: #D9541E; font-weight: 600;">{customer_email}</a> to update them on stock availability.
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+    admin_delivered = False
+    delivery_method = 'outbox_logged'
+    status_detail = ''
+
+    # 1. Dispatch to Admin via Brevo HTTPS API if available
+    if brevo_key:
+        ok, detail = send_via_brevo_api(brevo_key, sender_email, sender_name, admin_recipient, admin_subject, admin_html, admin_text)
+        if ok:
+            admin_delivered = True
+            delivery_method = 'brevo_api'
+            log_to_outbox(admin_recipient, admin_subject, "Book Request", True, "Delivered via Brevo API")
+            print(f"[Mailer] Book request notification sent to {admin_recipient} via Brevo API")
+        else:
+            status_detail = detail
+            log_to_outbox(admin_recipient, admin_subject, "Book Request", False, detail)
+            print(f"[Mailer] Brevo API book request failed: {detail}")
+
+    # Fallback to SMTP for Admin
+    user = cfg.get('smtp_user', '').strip()
+    pw = cfg.get('smtp_password', '').replace(' ', '').strip()
+    if not admin_delivered and user and pw and pw.lower() != 'none':
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = admin_subject
+            msg['From'] = f"{sender_name} <{sender_email}>"
+            msg['To'] = admin_recipient
+            msg.attach(MIMEText(admin_text, 'plain', 'utf-8'))
+            msg.attach(MIMEText(admin_html, 'html', 'utf-8'))
+
+            server = smtplib.SMTP(cfg['smtp_host'], cfg['smtp_port'], timeout=12)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(user, pw)
+            server.sendmail(sender_email, [admin_recipient], msg.as_string())
+            server.quit()
+            admin_delivered = True
+            delivery_method = 'smtp'
+            log_to_outbox(admin_recipient, admin_subject, "Book Request", True, "Dispatched via SMTP")
+            print(f"[Mailer] Book request notification sent to {admin_recipient} via SMTP")
+        except Exception as e:
+            status_detail = str(e)
+            log_to_outbox(admin_recipient, admin_subject, "Book Request", False, f"SMTP error: {e}")
+            print(f"[Mailer] SMTP book request error: {e}")
+
+    if not admin_delivered and not status_detail:
+        log_to_outbox(admin_recipient, admin_subject, "Book Request", False, "Book request recorded (Logged to outbox)")
+
+    # 2. Auto-reply confirmation to customer
+    if customer_email and '@' in customer_email:
+        cust_subject = f"Book Request Received: \"{book_title}\" - PageVault"
+        cust_text = f"""Hello {customer_name},
+
+Thank you for your book request on PageVault!
+We have received your request to add "{book_title}" (by {author_name or 'the author'}) to our catalog.
+
+Our sourcing and curation team has added this to our distributor inquiry queue. We will check availability with our publishers and distributors, and we will email you directly at {customer_email} as soon as copies are sourced and available for ordering!
+
+Details Received:
+- Title: {book_title}
+- Author: {author_name or 'N/A'}
+- ISBN: {isbn or 'N/A'}
+
+Warm regards,
+PageVault Editorial & Curation Desk
+tamimtahmid270@gmail.com
+"""
+        cust_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #F3EEE3; padding: 24px; color: #111;">
+  <div style="max-width: 540px; margin: 0 auto; background: #FFF; border-radius: 14px; border: 1px solid #E2DAD0; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+    <div style="font-size: 22px; font-weight: 800; color: #111; margin-bottom: 12px; text-align: center;">Page<span style="color: #D9541E;">Vault</span> Curation Desk</div>
+    <p style="font-size: 15px; line-height: 1.6;">Hello <strong>{customer_name}</strong>,</p>
+    <p style="font-size: 14px; line-height: 1.6; color: #444;">
+      Thank you for letting us know! We have received your request for:
+    </p>
+    <div style="background: #FAF7F2; border-left: 4px solid #D9541E; padding: 16px 20px; border-radius: 8px; margin: 18px 0;">
+      <div style="font-size: 17px; font-weight: 700; color: #111;">{book_title}</div>
+      <div style="font-size: 13px; color: #666; margin-top: 4px;">{f'Author: {author_name}' if author_name else ''} {f'&bull; ISBN: {isbn}' if isbn else ''}</div>
+    </div>
+    <p style="font-size: 14px; line-height: 1.6; color: #444;">
+      Our curation team is currently checking distribution channels and publisher stock for this title. As soon as it is cataloged and available for purchase, you will receive an update at <strong>{customer_email}</strong>.
+    </p>
+    <p style="font-size: 13px; color: #736C62; margin-top: 18px;">
+      If you have questions or want to update your request, feel free to reply directly to <a href="mailto:tamimtahmid270@gmail.com" style="color: #D9541E; font-weight: 600;">tamimtahmid270@gmail.com</a>.
+    </p>
+    <div style="font-size: 12px; color: #999; border-top: 1px solid #E2DAD0; padding-top: 14px; text-align: center; margin-top: 24px;">&copy; 2026 PageVault &bull; Dhaka, Bangladesh</div>
+  </div>
+</body>
+</html>
+"""
+        if brevo_key:
+            send_via_brevo_api(brevo_key, sender_email, sender_name, customer_email, cust_subject, cust_html, cust_text)
+        elif admin_delivered and delivery_method == 'smtp' and user and pw:
+            try:
+                cmsg = MIMEMultipart('alternative')
+                cmsg['Subject'] = cust_subject
+                cmsg['From'] = f"{sender_name} <{sender_email}>"
+                cmsg['To'] = customer_email
+                cmsg.attach(MIMEText(cust_text, 'plain', 'utf-8'))
+                cmsg.attach(MIMEText(cust_html, 'html', 'utf-8'))
+                server = smtplib.SMTP(cfg['smtp_host'], cfg['smtp_port'], timeout=12)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(user, pw)
+                server.sendmail(sender_email, [customer_email], cmsg.as_string())
+                server.quit()
+            except Exception:
+                pass
+
+    return {
+        'delivered': admin_delivered,
+        'method': delivery_method,
+        'message': 'Your book request has been submitted and queued for catalog sourcing.'
+    }
+

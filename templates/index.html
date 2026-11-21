@@ -296,6 +296,25 @@
       <button id="reset-filters-btn" class="reset-filters-btn">
         <span>Reset All Filters</span>
       </button>
+
+      <!-- Request Book Feature Section -->
+      <div class="sidebar-request-section">
+        <div class="sidebar-request-card" onclick="App.openRequestBookModal()" role="button" tabindex="0" title="Request a title not in the catalog">
+          <div class="sidebar-request-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              <line x1="12" y1="8" x2="12" y2="14"></line>
+              <line x1="9" y1="11" x2="15" y2="11"></line>
+            </svg>
+          </div>
+          <div class="sidebar-request-content">
+            <div class="sidebar-request-title">Can't Find a Book?</div>
+            <div class="sidebar-request-desc">Request any title and we'll source it for you</div>
+          </div>
+          <span class="sidebar-request-action">Request &rarr;</span>
+        </div>
+      </div>
     </aside>
 
     <!-- Main Catalog View -->
@@ -400,6 +419,8 @@
       <div class="footer-bottom">
         <p>&copy; 2026 <strong>PageVault</strong>. All rights reserved.</p>
         <div class="footer-bottom-links">
+          <a href="javascript:void(0)" onclick="App.openRequestBookModal()">Request a Book</a> &bull;
+          <a href="javascript:void(0)" onclick="App.openQueryModal()">Customer Support</a> &bull;
           <a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Back to Top &uarr;</a>
         </div>
       </div>
@@ -685,6 +706,30 @@
                     </tr>
                   </thead>
                   <tbody id="overview-queries-tbody">
+                    <!-- Dynamic -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Customer Book Requests Box (Catalog Expansion) -->
+            <div class="admin-snapshot-box" style="grid-column: 1 / -1; margin-top: 8px;">
+              <div class="snapshot-header">
+                <h4>📚 User Book Requests (Requested Titles for Catalog Sourcing)</h4>
+              </div>
+              <div class="snapshot-table-wrapper">
+                <table class="admin-data-table">
+                  <thead>
+                    <tr>
+                      <th>Requested Book Title</th>
+                      <th>Author / ISBN</th>
+                      <th>Requester Name</th>
+                      <th>Contact Email / Phone</th>
+                      <th>Genre &amp; Notes</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-requests-tbody">
                     <!-- Dynamic -->
                   </tbody>
                 </table>
@@ -1102,6 +1147,90 @@
       </div>
       <div class="modal-body" id="wishlist-modal-body">
         <!-- Rendered dynamically via app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Request a Book (Catalog Sourcing & Expansion) Modal -->
+  <div id="request-book-modal" class="modal-overlay" onclick="if(event.target === this) App.closeRequestBookModal()">
+    <div class="modal-container" style="max-width: 560px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--burnt-orange);">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              <line x1="12" y1="8" x2="12" y2="14"></line>
+              <line x1="9" y1="11" x2="15" y2="11"></line>
+            </svg>
+            Request a Book
+          </h3>
+          <p style="font-size: 13px; color: var(--taupe-muted); margin-top: 4px; line-height: 1.4;">
+            Looking for a title not currently in our catalog? Let us know and our curation team will source it for you!
+          </p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="App.closeRequestBookModal()" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="request-book-form" onsubmit="App.handleRequestBookSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" for="req-book-title">Book Title <span style="color: var(--burnt-orange);">*</span></label>
+            <input type="text" id="req-book-title" class="form-input" placeholder="e.g. Design Patterns: Elements of Reusable Object-Oriented Software" required />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="req-author-name">Author / Creator</label>
+              <input type="text" id="req-author-name" class="form-input" placeholder="e.g. Erich Gamma, Richard Helm" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="req-isbn">ISBN / Edition (optional)</label>
+              <input type="text" id="req-isbn" class="form-input" placeholder="e.g. 978-0201633610" />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="req-name">Your Full Name <span style="color: var(--burnt-orange);">*</span></label>
+              <input type="text" id="req-name" class="form-input" placeholder="e.g. Tamim Tahmid" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="req-phone">Phone Number</label>
+              <input type="tel" id="req-phone" class="form-input" placeholder="01XXXXXXXXX" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="req-email">Your Email Address <span style="color: var(--burnt-orange);">*</span></label>
+            <input type="email" id="req-email" class="form-input" placeholder="e.g. customer@example.com" required />
+            <small style="font-size: 11px; color: var(--taupe-muted); display: block; margin-top: 4px;">We will email you as soon as this title becomes available in stock.</small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="req-genre">Genre or Discipline (optional)</label>
+            <input type="text" id="req-genre" class="form-input" placeholder="e.g. Computer Science, Philosophy, Historical Fiction" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="req-notes">Additional Notes or Preferred Edition</label>
+            <textarea id="req-notes" class="form-input" rows="3" style="resize: vertical; font-family: inherit; line-height: 1.5;" placeholder="Hardcover or paperback? Specific publisher or translation? Let us know here..."></textarea>
+          </div>
+
+          <div id="request-book-feedback" style="display: none; padding: 12px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;"></div>
+
+          <div class="modal-actions-bar">
+            <button type="button" class="btn btn-secondary" onclick="App.closeRequestBookModal()">Cancel</button>
+            <button type="submit" id="request-book-submit-btn" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                <line x1="12" y1="8" x2="12" y2="14"></line>
+                <line x1="9" y1="11" x2="15" y2="11"></line>
+              </svg>
+              <span>Submit Request</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

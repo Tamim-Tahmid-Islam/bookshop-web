@@ -218,6 +218,23 @@ class DatabaseAdapter:
             status TEXT DEFAULT 'New',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS book_requests (
+            request_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            requester_name TEXT NOT NULL,
+            requester_email TEXT NOT NULL,
+            requester_phone TEXT DEFAULT '',
+            book_title TEXT NOT NULL,
+            author_name TEXT DEFAULT '',
+            isbn TEXT DEFAULT '',
+            genre_or_topic TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            status TEXT DEFAULT 'Pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_book_requests_email ON book_requests (requester_email);
         """)
 
         # Ensure transaction_id column exists in existing database files
@@ -305,15 +322,72 @@ class DatabaseAdapter:
         conn.close()
         return rows
 
-    def get_live_suggestions(self, query_text: str, limit: int = 5):
-        """Returns rapid instant search suggestions for the typeahead dropdown."""
+    def get_live_suggestions(self, query_text: str, limit: int = 6, filters: dict = None):
+        """Returns rapid instant search suggestions for the typeahead dropdown respecting active filters."""
         query_text = query_text.strip()
         if not query_text:
             return []
 
+        filters = filters or {}
         conn = self._get_connection()
         cursor = conn.cursor()
-        sql = """
+
+        where_clauses = ["b.is_deleted = 0", "(b.title LIKE ? OR a.name LIKE ? OR b.isbn LIKE ?)"]
+        pat = f"%{query_text}%"
+        sql_params = [pat, pat, pat]
+
+        cat_id = filters.get('category_id')
+        if cat_id and str(cat_id).isdigit() and int(cat_id) > 0:
+            where_clauses.append("b.category_id = ?")
+            sql_params.append(int(cat_id))
+
+        pub_id = filters.get('publisher_id')
+        if pub_id and str(pub_id).isdigit() and int(pub_id) > 0:
+            where_clauses.append("b.publisher_id = ?")
+            sql_params.append(int(pub_id))
+
+        min_price = filters.get('min_price')
+        if min_price is not None and str(min_price) != '':
+            try:
+                where_clauses.append("b.price >= ?")
+                sql_params.append(float(min_price))
+            except ValueError:
+                pass
+
+        max_price = filters.get('max_price')
+        if max_price is not None and str(max_price) != '':
+            try:
+                where_clauses.append("b.price <= ?")
+                sql_params.append(float(max_price))
+            except ValueError:
+                pass
+
+        in_stock = filters.get('in_stock')
+        if in_stock in [True, 'true', '1', 1]:
+            where_clauses.append("b.stock_qty > 0")
+
+        popular = filters.get('popular')
+        if popular in [True, 'true', '1', 1]:
+            where_clauses.append("b.stock_qty > 0")
+
+        year_min = filters.get('year_min')
+        if year_min and str(year_min).isdigit():
+            where_clauses.append("b.publication_year >= ?")
+            sql_params.append(int(year_min))
+
+        year_max = filters.get('year_max')
+        if year_max and str(year_max).isdigit():
+            where_clauses.append("b.publication_year <= ?")
+            sql_params.append(int(year_max))
+
+        on_sale = filters.get('on_sale')
+        if on_sale in [True, 'true', '1', 1]:
+            where_clauses.append("b.discount_pct > 0")
+
+        sql_params.append(limit)
+        where_str = " AND ".join(where_clauses)
+
+        sql = f"""
         SELECT 
             b.book_id,
             b.title,
@@ -327,13 +401,12 @@ class DatabaseAdapter:
         INNER JOIN categories c ON b.category_id = c.category_id
         LEFT JOIN book_authors ba ON b.book_id = ba.book_id
         LEFT JOIN authors a ON ba.author_id = a.author_id
-        WHERE b.is_deleted = 0 AND (b.title LIKE ? OR a.name LIKE ? OR b.isbn LIKE ?)
+        WHERE {where_str}
         GROUP BY b.book_id
         ORDER BY b.title ASC
         LIMIT ?
         """
-        pat = f"%{query_text}%"
-        cursor.execute(sql, (pat, pat, pat, limit))
+        cursor.execute(sql, sql_params)
         results = [dict(row) for row in cursor.fetchall()]
         conn.close()
         return results
@@ -362,9 +435,9 @@ class DatabaseAdapter:
         algebra_selections = []
 
         if keyword:
-            where_clauses.append("(b.title LIKE ? OR b.description LIKE ? OR a.name LIKE ? OR b.isbn LIKE ? OR c.name LIKE ?)")
+            where_clauses.append("(b.title LIKE ? OR b.description LIKE ? OR a.name LIKE ? OR b.isbn LIKE ?)")
             pat = f"%{keyword}%"
-            sql_params.extend([pat, pat, pat, pat, pat])
+            sql_params.extend([pat, pat, pat, pat])
             algebra_selections.append(f"search_term('{keyword}')")
 
         if category_id and str(category_id).isdigit() and int(category_id) > 0:
@@ -1061,6 +1134,16 @@ class DatabaseAdapter:
         """)
         recent_queries = [dict(r) for r in cursor.fetchall()]
 
+        # 10. Recent Book Requests
+        cursor.execute("""
+            SELECT request_id, user_id, requester_name, requester_email, requester_phone,
+                   book_title, author_name, isbn, genre_or_topic, notes, status, created_at
+            FROM book_requests
+            ORDER BY created_at DESC
+            LIMIT 20
+        """)
+        recent_requests = [dict(r) for r in cursor.fetchall()]
+
         conn.close()
         return {
             'metrics': {
@@ -1075,8 +1158,67 @@ class DatabaseAdapter:
             'low_stock_items': low_stock_items,
             'books': all_books,
             'active_resets': active_resets,
-            'recent_queries': recent_queries
+            'recent_queries': recent_queries,
+            'recent_requests': recent_requests
         }
+
+    def create_book_request(self, data: dict):
+        """Records a new customer book request for titles not currently in the catalog."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        user_id = data.get('user_id')
+        requester_name = (data.get('requester_name') or data.get('name') or '').strip()
+        requester_email = (data.get('requester_email') or data.get('email') or '').strip()
+        requester_phone = (data.get('requester_phone') or data.get('phone') or '').strip()
+        book_title = (data.get('book_title') or data.get('title') or '').strip()
+        author_name = (data.get('author_name') or data.get('author') or '').strip()
+        isbn = (data.get('isbn') or '').strip()
+        genre_or_topic = (data.get('genre_or_topic') or data.get('genre') or '').strip()
+        notes = (data.get('notes') or '').strip()
+
+        if self.mode == 'MYSQL':
+            cursor.execute("""
+                INSERT INTO book_requests (user_id, requester_name, requester_email, requester_phone, book_title, author_name, isbn, genre_or_topic, notes, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Pending')
+            """, (user_id, requester_name, requester_email, requester_phone, book_title, author_name, isbn, genre_or_topic, notes))
+            request_id = cursor.lastrowid
+        else:
+            cursor.execute("""
+                INSERT INTO book_requests (user_id, requester_name, requester_email, requester_phone, book_title, author_name, isbn, genre_or_topic, notes, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
+            """, (user_id, requester_name, requester_email, requester_phone, book_title, author_name, isbn, genre_or_topic, notes))
+            request_id = cursor.lastrowid
+
+        conn.commit()
+        conn.close()
+        return {
+            'request_id': request_id,
+            'requester_name': requester_name,
+            'requester_email': requester_email,
+            'requester_phone': requester_phone,
+            'book_title': book_title,
+            'author_name': author_name,
+            'isbn': isbn,
+            'genre_or_topic': genre_or_topic,
+            'notes': notes,
+            'status': 'Pending'
+        }
+
+    def get_book_requests(self, limit: int = 50):
+        """Retrieves customer book requests from the database."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT request_id, user_id, requester_name, requester_email, requester_phone,
+                   book_title, author_name, isbn, genre_or_topic, notes, status, created_at
+            FROM book_requests
+            ORDER BY created_at DESC
+            LIMIT ?
+        """, (limit,))
+        rows = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return rows
 
     def create_customer_query(self, data: dict):
         """Records a new customer inquiry submitted via the support floating widget."""
