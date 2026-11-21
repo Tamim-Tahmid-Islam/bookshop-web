@@ -412,8 +412,7 @@ body {
 }
 
 .sidebar.collapsed {
-  transform: translateX(-100%);
-  position: absolute;
+  display: none !important;
 }
 
 .sidebar-overlay {
@@ -1945,25 +1944,10 @@ input:checked + .slider:before {
   .nav-left {
     gap: 10px;
     flex-shrink: 0;
-    position: static;
-  }
-
-  /* Center the website logo horizontally for mobile version only */
-  .brand-link {
-    position: absolute;
-    left: 50%;
-    top: 10px;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 38px;
-    z-index: 1072;
   }
 
   .brand-logo {
-    height: 32px;
-    max-height: 32px;
+    height: 36px;
     width: auto;
   }
 
@@ -2023,7 +2007,7 @@ input:checked + .slider:before {
     background: rgba(17, 17, 17, 0.52);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
-    z-index: 1050;
+    z-index: 2000;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2050,7 +2034,7 @@ input:checked + .slider:before {
     box-shadow: 10px 0 35px rgba(17, 17, 17, 0.22);
     transform: translateX(-100%);
     transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: 1060;
+    z-index: 2001;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 0 16px 28px 16px;
@@ -2158,14 +2142,8 @@ input:checked + .slider:before {
     row-gap: 8px;
   }
 
-  .brand-link {
-    top: 8px;
-    height: 34px;
-  }
-
   .brand-logo {
-    height: 28px;
-    max-height: 28px;
+    height: 32px;
   }
 
   .nav-left {

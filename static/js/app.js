@@ -464,13 +464,20 @@ const App = {
     if (modalCount) modalCount.textContent = this.wishlist.length;
   },
 
+  _lastSidebarToggleTime: 0,
+
   // -------------------------------------------------------------------------
   // Sidebar Navigation (Desktop Collapse & Mobile Responsive Drawer)
   // -------------------------------------------------------------------------
   toggleSidebar(e) {
-    if (e && typeof e.stopPropagation === 'function') {
-      e.stopPropagation();
+    if (e) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
     }
+    const now = Date.now();
+    if (now - this._lastSidebarToggleTime < 220) return;
+    this._lastSidebarToggleTime = now;
+
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const toggleBtn = document.getElementById('sidebar-toggle-btn');
@@ -488,62 +495,65 @@ const App = {
       }
     } else {
       sidebar.classList.toggle('collapsed');
+      if (toggleBtn) {
+        toggleBtn.classList.toggle('active', !sidebar.classList.contains('collapsed'));
+      }
     }
   },
 
   closeMobileSidebar(e) {
-    if (e && typeof e.stopPropagation === 'function') {
-      e.stopPropagation();
+    if (e) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
     }
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const toggleBtn = document.getElementById('sidebar-toggle-btn');
     if (sidebar) sidebar.classList.remove('mobile-open');
     if (overlay) overlay.classList.remove('active');
-    if (toggleBtn) toggleBtn.classList.remove('active');
+    if (toggleBtn && window.innerWidth <= 900) toggleBtn.classList.remove('active');
     document.body.classList.remove('sidebar-open-locked');
   },
 
   bindGlobalEvents() {
-    // Sidebar toggle (desktop collapse + mobile toggle)
+    // 1. Sidebar toggle (desktop collapse + mobile drawer toggle)
     const toggleBtn = document.getElementById('sidebar-toggle-btn');
     if (toggleBtn) {
-      toggleBtn.addEventListener('click', (e) => this.toggleSidebar(e));
+      toggleBtn.onclick = (e) => this.toggleSidebar(e);
     }
 
-    // Mobile sidebar overlay touch / click dismissal
+    // 2. Mobile sidebar overlay click to dismiss
     const sidebarOverlay = document.getElementById('sidebar-overlay');
     if (sidebarOverlay) {
-      sidebarOverlay.addEventListener('click', (e) => this.closeMobileSidebar(e));
-      sidebarOverlay.addEventListener('touchstart', (e) => this.closeMobileSidebar(e), { passive: true });
+      sidebarOverlay.onclick = (e) => this.closeMobileSidebar(e);
     }
 
-    // Mobile sidebar header 3-bar and close buttons
+    // 3. Mobile sidebar drawer close button (×)
     const mobileCloseBtn = document.getElementById('sidebar-close-btn');
     if (mobileCloseBtn) {
-      mobileCloseBtn.addEventListener('click', (e) => this.closeMobileSidebar(e));
+      mobileCloseBtn.onclick = (e) => this.closeMobileSidebar(e);
     }
 
+    // 4. Mobile sidebar drawer header hamburger toggle
     const mobileToggleBtn = document.getElementById('sidebar-mobile-toggle-btn');
     if (mobileToggleBtn) {
-      mobileToggleBtn.addEventListener('click', (e) => this.closeMobileSidebar(e));
+      mobileToggleBtn.onclick = (e) => this.closeMobileSidebar(e);
     }
 
-    // Tap/click randomly anywhere outside sidebar on phone to dismiss immediately
-    const handleOutsideSidebarClick = (e) => {
+    // 5. Dismiss mobile sidebar when clicking anywhere outside it on phone
+    document.addEventListener('click', (e) => {
       if (window.innerWidth > 900) return;
       const sidebar = document.getElementById('sidebar');
       if (!sidebar || !sidebar.classList.contains('mobile-open')) return;
+      // Prevent immediately dismissing on the opening click event
+      if (Date.now() - this._lastSidebarToggleTime < 300) return;
       const tBtn = document.getElementById('sidebar-toggle-btn');
       if (sidebar.contains(e.target)) return;
       if (tBtn && (tBtn === e.target || tBtn.contains(e.target))) return;
       this.closeMobileSidebar(e);
-    };
+    });
 
-    document.addEventListener('click', handleOutsideSidebarClick);
-    document.addEventListener('touchstart', handleOutsideSidebarClick, { passive: true });
-
-    // Escape key closes mobile sidebar
+    // 6. Escape key dismisses mobile sidebar
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const sidebar = document.getElementById('sidebar');
