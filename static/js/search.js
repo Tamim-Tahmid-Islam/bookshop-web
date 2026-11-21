@@ -16,6 +16,7 @@ const SearchEngine = {
     min_rating: '',
     in_stock: false,
     on_sale: false,
+    popular: false,
     sort: 'relevance',
     page: 1,
     page_size: 12
@@ -145,7 +146,18 @@ const SearchEngine = {
     const sortSelect = document.getElementById('sort-select');
     if (sortSelect) {
       sortSelect.addEventListener('change', (e) => {
-        this.state.sort = e.target.value;
+        const val = e.target.value;
+        this.state.sort = val;
+        this.state.popular = (val === 'popular');
+        const popularBtn = document.getElementById('popular-books-btn');
+        if (popularBtn) {
+          popularBtn.classList.toggle('active', this.state.popular);
+        }
+        if (this.state.popular) {
+          this.state.in_stock = true;
+          const stockToggle = document.getElementById('stock-only-toggle');
+          if (stockToggle) stockToggle.checked = true;
+        }
         this.state.page = 1;
         this.executeSearch();
       });
@@ -296,6 +308,37 @@ const SearchEngine = {
     }
   },
 
+  togglePopularFilter() {
+    this.state.popular = !this.state.popular;
+    this.state.page = 1;
+
+    const card = document.getElementById('popular-books-btn');
+    if (card) {
+      card.classList.toggle('active', this.state.popular);
+    }
+
+    const sortSelect = document.getElementById('sort-select');
+    if (this.state.popular) {
+      this.state.in_stock = true;
+      const stockToggle = document.getElementById('stock-only-toggle');
+      if (stockToggle) stockToggle.checked = true;
+      if (sortSelect) sortSelect.value = 'popular';
+      this.state.sort = 'popular';
+    } else {
+      if (sortSelect && sortSelect.value === 'popular') {
+        sortSelect.value = 'relevance';
+        this.state.sort = 'relevance';
+      }
+    }
+
+    this.executeSearch();
+
+    // Auto-dismiss sidebar on phone so the user immediately sees the popular titles
+    if (window.innerWidth <= 900 && typeof App !== 'undefined' && App.closeMobileSidebar) {
+      App.closeMobileSidebar();
+    }
+  },
+
   resetFilters() {
     this.state.q = '';
     this.state.category_id = null;
@@ -308,8 +351,12 @@ const SearchEngine = {
     this.state.min_rating = '';
     this.state.in_stock = false;
     this.state.on_sale = false;
+    this.state.popular = false;
     this.state.sort = 'relevance';
     this.state.page = 1;
+
+    const popBtn = document.getElementById('popular-books-btn');
+    if (popBtn) popBtn.classList.remove('active');
 
     const sInput = document.getElementById('search-input');
     if (sInput) sInput.value = '';
@@ -379,6 +426,9 @@ const SearchEngine = {
       this.state.on_sale = false;
       const toggle = document.getElementById('onsale-only-toggle');
       if (toggle) toggle.checked = false;
+    } else if (type === 'popular') {
+      this.togglePopularFilter();
+      return;
     }
 
     this.state.page = 1;
@@ -465,6 +515,13 @@ const SearchEngine = {
       });
     }
 
+    if (this.state.popular) {
+      chips.push({
+        type: 'popular',
+        html: `★ <strong>Most Popular (Order History)</strong>`
+      });
+    }
+
     if (chips.length > 0) {
       container.innerHTML = chips.map(chip => `
         <span class="active-filter-chip">
@@ -496,6 +553,7 @@ const SearchEngine = {
     if (this.state.min_rating) params.set('min_rating', this.state.min_rating);
     if (this.state.in_stock) params.set('in_stock', 'true');
     if (this.state.on_sale) params.set('on_sale', 'true');
+    if (this.state.popular) params.set('popular', 'true');
     if (this.state.sort) params.set('sort', this.state.sort);
     params.set('page', this.state.page);
     params.set('page_size', this.state.page_size);
@@ -549,6 +607,8 @@ const SearchEngine = {
       const isOutOfStock = book.stock_qty <= 0;
       if (isOutOfStock) {
         secondaryBadge = '<span class="book-secondary-badge badge-outstock" style="background: #DC2626; color: white;">Sold Out</span>';
+      } else if (book.total_ordered && parseInt(book.total_ordered) > 0) {
+        secondaryBadge = `<span class="book-secondary-badge badge-bestseller" style="background: var(--burnt-orange); color: white;" title="${book.total_ordered} orders recorded in database">🔥 ${book.total_ordered} Sold</span>`;
       } else if (book.stock_qty <= 20) {
         secondaryBadge = `<span class="book-secondary-badge badge-lowstock">🔥 Only ${book.stock_qty} Left</span>`;
       } else if (rating >= 4.8) {

@@ -417,6 +417,12 @@ class DatabaseAdapter:
             where_clauses.append("b.stock_qty > 0")
             algebra_selections.append("stock_qty > 0")
 
+        popular = params.get('popular')
+        is_popular_mode = popular in [True, 'true', '1', 1] or sort_by == 'popular'
+        if is_popular_mode:
+            where_clauses.append("b.stock_qty > 0")
+            algebra_selections.append("stock_qty > 0 (available titles)")
+
         having_clause = ""
         having_algebra = ""
         if min_rating and str(min_rating) != '':
@@ -430,7 +436,9 @@ class DatabaseAdapter:
                 pass
 
         order_by = "b.book_id ASC"
-        if sort_by == 'price_asc':
+        if is_popular_mode or sort_by == 'popular':
+            order_by = "total_ordered DESC, avg_rating DESC, b.stock_qty DESC"
+        elif sort_by == 'price_asc':
             order_by = "effective_price ASC"
         elif sort_by == 'price_desc':
             order_by = "effective_price DESC"
@@ -484,13 +492,19 @@ class DatabaseAdapter:
             p.name AS publisher_name,
             GROUP_CONCAT(DISTINCT a.name) AS authors,
             ROUND(COALESCE(AVG(r.rating), 0), 1) AS avg_rating,
-            COUNT(DISTINCT r.review_id) AS total_reviews
+            COUNT(DISTINCT r.review_id) AS total_reviews,
+            COALESCE(oi_summary.total_ordered, 0) AS total_ordered
         FROM books b
         INNER JOIN categories c ON b.category_id = c.category_id
         LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
         LEFT JOIN book_authors ba ON b.book_id = ba.book_id
         LEFT JOIN authors a ON ba.author_id = a.author_id
         LEFT JOIN reviews r ON b.book_id = r.book_id
+        LEFT JOIN (
+            SELECT book_id, SUM(quantity) AS total_ordered
+            FROM order_items
+            GROUP BY book_id
+        ) oi_summary ON b.book_id = oi_summary.book_id
         WHERE {where_sql}
         GROUP BY b.book_id, c.name, p.name
         {having_clause}
@@ -519,6 +533,10 @@ class DatabaseAdapter:
             'execution_time_ms': elapsed_ms,
             'db_engine': self.mode
         }
+
+    def get_popular_books(self, limit: int = 12):
+        """Returns top available books ranked by order history sales from the database."""
+        return self.search_books({'popular': True, 'page_size': limit})
 
     def get_book_details(self, book_id: int):
         """Fetches full book details including reviews, publisher, and authors."""

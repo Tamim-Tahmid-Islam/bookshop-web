@@ -81,6 +81,13 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
             })
             return
 
+        # 1.3 API: Popular Books Ranked by Order History
+        if path == '/api/popular-books':
+            limit = int(flat_params.get('limit', 12))
+            res = db.get_popular_books(limit=limit)
+            self._send_json(200, res)
+            return
+
         # 2. API: Categories
         if path == '/api/categories':
             categories = db.get_categories()

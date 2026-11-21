@@ -430,6 +430,144 @@ body {
   border-color: var(--burnt-orange);
 }
 
+/* -----------------------------------------------------------------------------
+   Most Popular Books Sidebar Feature
+   ----------------------------------------------------------------------------- */
+.popular-feature-section {
+  padding-bottom: 2px;
+}
+
+.popular-filter-card {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(217, 84, 30, 0.08) 0%, rgba(243, 238, 227, 0.65) 100%);
+  border: 1.5px solid rgba(217, 84, 30, 0.32);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(217, 84, 30, 0.07);
+  position: relative;
+  overflow: hidden;
+}
+
+.popular-filter-card:hover {
+  background: linear-gradient(135deg, rgba(217, 84, 30, 0.15) 0%, rgba(243, 238, 227, 0.95) 100%);
+  border-color: var(--burnt-orange);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(217, 84, 30, 0.16);
+}
+
+.popular-filter-card.active {
+  background: var(--burnt-orange);
+  border-color: var(--burnt-orange-dark);
+  box-shadow: 0 4px 16px rgba(217, 84, 30, 0.35);
+  color: #FFFFFF;
+}
+
+.popular-card-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: rgba(217, 84, 30, 0.15);
+  color: var(--burnt-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.popular-filter-card.active .popular-card-icon-box {
+  background: rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+}
+
+.popular-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.popular-card-headline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 2px;
+}
+
+.popular-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-black);
+  letter-spacing: -0.01em;
+  transition: color 0.2s;
+}
+
+.popular-filter-card.active .popular-card-title {
+  color: #FFFFFF;
+}
+
+.popular-live-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--burnt-orange);
+  color: #FFFFFF;
+  line-height: 1.2;
+}
+
+.popular-filter-card.active .popular-live-badge {
+  background: #FFFFFF;
+  color: var(--burnt-orange);
+}
+
+.popular-card-sub {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin: 0;
+  line-height: 1.3;
+  transition: color 0.2s;
+}
+
+.popular-filter-card.active .popular-card-sub {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.popular-card-toggle-indicator {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(217, 84, 30, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  background: transparent;
+}
+
+.popular-check-icon {
+  font-size: 12px;
+  font-weight: 800;
+  color: transparent;
+  transition: all 0.2s;
+}
+
+.popular-filter-card.active .popular-card-toggle-indicator {
+  background: #FFFFFF;
+  border-color: #FFFFFF;
+}
+
+.popular-filter-card.active .popular-check-icon {
+  color: var(--burnt-orange);
+}
+
 .filter-section {
   display: flex;
   flex-direction: column;
@@ -1793,6 +1931,9 @@ input:checked + .slider:before {
   }
 
   .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 1070;
     height: auto;
     min-height: 60px;
     padding: 10px 16px;
@@ -1804,10 +1945,26 @@ input:checked + .slider:before {
   .nav-left {
     gap: 10px;
     flex-shrink: 0;
+    position: static;
+  }
+
+  /* Center the website logo horizontally for mobile version only */
+  .brand-link {
+    position: absolute;
+    left: 50%;
+    top: 10px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 38px;
+    z-index: 1072;
   }
 
   .brand-logo {
-    height: 36px;
+    height: 32px;
+    max-height: 32px;
+    width: auto;
   }
 
   .nav-right {
@@ -2001,8 +2158,14 @@ input:checked + .slider:before {
     row-gap: 8px;
   }
 
+  .brand-link {
+    top: 8px;
+    height: 34px;
+  }
+
   .brand-logo {
-    height: 32px;
+    height: 28px;
+    max-height: 28px;
   }
 
   .nav-left {
