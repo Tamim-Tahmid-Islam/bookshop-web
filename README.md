@@ -200,4 +200,8 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 ---
 
 **Developed & Maintained by [Tamim Tahmid Islam](https://github.com/Tamim-Tahmid-Islam)**  
+[![GitHub](https://img.shields.io/badge/GitHub-Tamim--Tahmid--Islam-181717?style=flat-square&logo=github)](https://github.com/Tamim-Tahmid-Islam)
+[![Instagram](https://img.shields.io/badge/Instagram-a__walkin__flex-E4405F?style=flat-square&logo=instagram)](https://www.instagram.com/a_walkin_flex)
+[![Facebook](https://img.shields.io/badge/Facebook-tamim.tahmid.27-1877F2?style=flat-square&logo=facebook)](https://www.facebook.com/tamim.tahmid.27)
+
 *Curated Books. Infinite Worlds.*
