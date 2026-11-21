@@ -1324,8 +1324,8 @@
        My Orders & History Modal (with 12-Hour Cancellation & Online Refund)
        ========================================================================= -->
   <div id="my-orders-modal" class="modal-overlay" onclick="if(event.target === this) App.closeMyOrdersModal()">
-    <div class="modal-container" style="max-width: 780px; max-height: 90vh; display: flex; flex-direction: column;">
-      <div class="modal-header">
+    <div class="modal-container my-orders-modal-container">
+      <div class="modal-header my-orders-modal-header">
         <div>
           <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--burnt-orange);">
@@ -1335,31 +1335,31 @@
             </svg>
             My Orders &amp; Account History
           </h3>
-          <p style="font-size: 13px; color: var(--taupe-muted); margin-top: 4px; line-height: 1.4;">
+          <p style="font-size: 13px; color: var(--taupe-muted); margin-top: 3px; line-height: 1.3;">
             Track active shipments, verify placement date &amp; time, and manage 12-hour self-cancellations.
           </p>
         </div>
         <button type="button" class="modal-close-btn" onclick="App.closeMyOrdersModal()" aria-label="Close modal">&times;</button>
       </div>
 
-      <!-- Service-Oriented Cancellation Guarantee Banner -->
+      <!-- Service-Oriented Cancellation Guarantee Banner (Sleek & Compact) -->
       <div class="orders-policy-banner">
         <div class="orders-policy-icon">🛡️</div>
         <div class="orders-policy-text">
           <strong>12-Hour Self-Cancellation &amp; Online Refund Guarantee:</strong>
-          Any active order can be cancelled directly within <strong>12 hours</strong> of placement. If you paid online via bKash, Nagad, or Card, your payment will be refunded to your original payment method (the delivery fee will be deducted to cover dispatch handling).
+          Cancel any order directly within <strong>12 hours</strong> of placement. Online payments (bKash/Nagad/Card) will be refunded to your original payment method (delivery fee deducted for packaging &amp; dispatch).
         </div>
       </div>
 
       <!-- Specific Order Lookup Bar -->
       <div class="orders-lookup-bar">
-        <input type="text" id="order-lookup-input" class="form-input" style="font-size: 0.85rem; padding: 8px 12px;" placeholder="Search by Order Code (e.g. PV-123456-789)..." onkeydown="if(event.key==='Enter') App.lookupSpecificOrder()" />
-        <button type="button" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.82rem;" onclick="App.lookupSpecificOrder()">Search Order</button>
-        <button type="button" class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.82rem;" onclick="App.refreshUserOrders()">Refresh</button>
+        <input type="text" id="order-lookup-input" class="form-input" style="font-size: 0.85rem; padding: 7px 12px;" placeholder="Search by Order Code (e.g. PV-123456-789)..." onkeydown="if(event.key==='Enter') App.lookupSpecificOrder()" />
+        <button type="button" class="btn btn-secondary" style="padding: 7px 14px; font-size: 0.82rem;" onclick="App.lookupSpecificOrder()">Search Order</button>
+        <button type="button" class="btn btn-secondary" style="padding: 7px 12px; font-size: 0.82rem;" onclick="App.refreshUserOrders()">Refresh</button>
       </div>
 
-      <!-- Orders List Container -->
-      <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 18px 24px;">
+      <!-- Orders List Container - Expands Vertically to Maximize Visibility -->
+      <div class="modal-body my-orders-modal-body">
         <div id="my-orders-list">
           <!-- Dynamically populated -->
         </div>

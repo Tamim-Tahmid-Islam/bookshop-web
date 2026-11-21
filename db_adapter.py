@@ -694,12 +694,22 @@ class DatabaseAdapter:
         if not (customer_name and customer_phone and delivery_address and items):
             return {'success': False, 'message': 'Missing mandatory customer shipping or order item details.'}
 
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # If email not provided in form but user is authenticated, retrieve user email
+        if not customer_email and user_id:
+            try:
+                cursor.execute("SELECT email FROM users WHERE user_id = ?", (user_id,))
+                u_row = cursor.fetchone()
+                if u_row and u_row['email']:
+                    customer_email = u_row['email'].strip()
+            except Exception:
+                pass
+
         # Calculate fees
         delivery_fee = 60.0 if district.lower() == 'dhaka' else 120.0
         subtotal = 0.0
-
-        conn = self._get_connection()
-        cursor = conn.cursor()
 
         try:
             # Begin explicit transaction
@@ -1117,7 +1127,7 @@ class DatabaseAdapter:
                    o.created_at
             FROM orders o
             WHERE {where_sql}
-            ORDER BY o.created_at DESC, o.order_id DESC
+            ORDER BY o.order_id DESC, o.created_at DESC
             LIMIT ?
         """
         params.append(limit)

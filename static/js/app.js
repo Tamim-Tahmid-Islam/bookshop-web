@@ -798,9 +798,13 @@ const App = {
     // Auto-fill logged in user info if available
     if (Auth.currentUser) {
       const nameField = document.getElementById('checkout-name');
-      if (nameField && !nameField.value) nameField.value = Auth.currentUser.full_name;
+      if (nameField && (!nameField.value || !nameField.value.trim())) {
+        nameField.value = Auth.currentUser.full_name || '';
+      }
       const emailField = document.getElementById('checkout-email');
-      if (emailField && !emailField.value) emailField.value = Auth.currentUser.email;
+      if (emailField && (!emailField.value || !emailField.value.trim())) {
+        emailField.value = Auth.currentUser.email || '';
+      }
     }
 
     const subtotal = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -841,7 +845,10 @@ const App = {
 
     const name = document.getElementById('checkout-name').value.trim();
     const phone = document.getElementById('checkout-phone').value.trim();
-    const email = document.getElementById('checkout-email') ? document.getElementById('checkout-email').value.trim() : '';
+    let email = document.getElementById('checkout-email') ? document.getElementById('checkout-email').value.trim() : '';
+    if (!email && Auth.currentUser && Auth.currentUser.email) {
+      email = Auth.currentUser.email.trim();
+    }
     const address = document.getElementById('checkout-address').value.trim();
     const district = document.getElementById('checkout-district').value;
     const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
@@ -1975,6 +1982,10 @@ const App = {
       const res = await fetch(`/api/user/orders?${params.toString()}`);
       const data = await res.json();
       const orders = data.orders || [];
+      if (Array.isArray(orders)) {
+        // Guarantee latest orders are always sorted strictly at the top of the list
+        orders.sort((a, b) => (parseInt(b.order_id, 10) || 0) - (parseInt(a.order_id, 10) || 0));
+      }
       this.userOrdersCache = orders;
       this.renderUserOrders(orders);
     } catch (err) {

@@ -3808,43 +3808,71 @@ body:not(.page-revealed) .site-footer {
 }
 
 /* -----------------------------------------------------------------------------
-   My Orders & 12-Hour Cancellation Policy Styling
+   My Orders & 12-Hour Cancellation Policy Styling (Maximized Vertical Area)
    ----------------------------------------------------------------------------- */
+.my-orders-modal-container {
+  max-width: 920px !important;
+  width: 94vw !important;
+  height: 94vh !important;
+  max-height: 94vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.my-orders-modal-header {
+  padding: 16px 24px !important;
+  flex-shrink: 0 !important;
+  border-bottom: 1px solid var(--cream-border);
+  background: #FFFFFF;
+}
+
+.my-orders-modal-body {
+  overflow-y: auto !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 10px 24px 24px 24px !important;
+  scrollbar-width: thin;
+}
+
 .orders-policy-banner {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
   background: linear-gradient(135deg, rgba(217, 84, 30, 0.08) 0%, rgba(254, 243, 199, 0.5) 100%);
   border: 1px solid rgba(217, 84, 30, 0.25);
-  border-radius: var(--radius-md);
-  padding: 12px 16px;
-  margin: 0 24px 14px 24px;
+  border-radius: var(--radius-sm, 8px);
+  padding: 8px 14px;
+  margin: 10px 24px 4px 24px;
+  flex-shrink: 0;
 }
 
 .orders-policy-icon {
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   line-height: 1;
 }
 
 .orders-policy-text {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #78350F;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .orders-lookup-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 24px 14px 24px;
+  gap: 8px;
+  margin: 6px 24px 10px 24px;
+  flex-shrink: 0;
 }
 
 .order-history-card {
   background: #FFFFFF;
   border: 1px solid var(--cream-border);
   border-radius: var(--radius-md);
-  padding: 20px;
-  margin-bottom: 18px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
@@ -3859,10 +3887,10 @@ body:not(.page-revealed) .site-footer {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--sand-light, #F1ECE4);
-  padding-bottom: 12px;
-  margin-bottom: 14px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .order-code-badge {
@@ -3871,14 +3899,14 @@ body:not(.page-revealed) .site-footer {
   font-size: 0.92rem;
   color: var(--burnt-orange);
   background: rgba(217, 84, 30, 0.08);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 6px;
 }
 
 .order-status-pill {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3891,14 +3919,34 @@ body:not(.page-revealed) .site-footer {
 
 .order-history-meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-  font-size: 0.82rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  font-size: 0.8rem;
   color: var(--ink-charcoal);
   background: #FAF7F2;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 768px) {
+  .my-orders-modal-container {
+    width: 98vw !important;
+    height: 96vh !important;
+    max-height: 96vh !important;
+    border-radius: 12px !important;
+  }
+  .my-orders-modal-header {
+    padding: 12px 14px !important;
+  }
+  .orders-policy-banner,
+  .orders-lookup-bar {
+    margin: 6px 14px !important;
+    padding: 7px 10px !important;
+  }
+  .my-orders-modal-body {
+    padding: 6px 12px 18px 12px !important;
+  }
 }
 
 .order-meta-item label {

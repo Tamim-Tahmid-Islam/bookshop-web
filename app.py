@@ -300,10 +300,20 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path == '/api/orders':
             res = db.create_order(body)
             if res['success']:
-                customer_email = body.get('customer_email') or body.get('email', '')
-                if customer_email:
+                customer_email = (body.get('customer_email') or body.get('email') or '').strip()
+                user_id = body.get('user_id')
+                if not customer_email and user_id:
+                    try:
+                        u_info = db.get_user_by_id(user_id)
+                        if u_info and u_info.get('email'):
+                            customer_email = u_info['email'].strip()
+                    except Exception as err:
+                        print(f"[Order] Could not retrieve user email from user_id: {err}")
+
+                # Send order confirmation email (to customer and alerts admin desk)
+                try:
                     email_result = mailer.send_order_confirmation_email(
-                        to_email=customer_email,
+                        to_email=customer_email or "tamimtahmid270@gmail.com",
                         customer_name=body.get('customer_name', 'Customer'),
                         order_code=res['order_code'],
                         total_amount=res['total_amount'],
@@ -312,9 +322,12 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                         items=body.get('items', []),
                         transaction_id=res.get('transaction_id', '')
                     )
-                    # Automatically mark status as Confirmed upon sending order confirmation email
-                    if res.get('order_id'):
-                        db.update_order_status(res['order_id'], 'Confirmed')
+                except Exception as e:
+                    print(f"[Order] Order confirmation email dispatch failed: {e}")
+
+                # Automatically mark status as Confirmed upon placing order
+                if res.get('order_id'):
+                    db.update_order_status(res['order_id'], 'Confirmed')
             self._send_json(201 if res['success'] else 400, res)
             return
 
