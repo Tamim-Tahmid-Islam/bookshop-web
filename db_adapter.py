@@ -171,6 +171,7 @@ class DatabaseAdapter:
             subtotal REAL NOT NULL,
             delivery_fee REAL NOT NULL,
             total_amount REAL NOT NULL,
+            transaction_id TEXT DEFAULT '',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
         );
@@ -207,6 +208,12 @@ class DatabaseAdapter:
         CREATE INDEX IF NOT EXISTS idx_resets_token ON password_resets (reset_token);
         CREATE INDEX IF NOT EXISTS idx_orders_code ON orders (order_code);
         """)
+
+        # Ensure transaction_id column exists in existing database files
+        try:
+            cursor.execute("ALTER TABLE orders ADD COLUMN transaction_id TEXT DEFAULT ''")
+        except Exception:
+            pass
 
         # Check if seed data exists
         cursor.execute("SELECT COUNT(*) AS cnt FROM books")
@@ -752,13 +759,16 @@ class DatabaseAdapter:
             order_code = f"PV-{int(time.time()) % 1000000:06d}-{secrets.randbelow(900)+100}"
 
             # 3. Insert Order
+            trx_id = order_data.get('transaction_id', '')
+            pay_status = 'Completed' if payment_method in ['bKash', 'Nagad', 'Card'] or trx_id else 'Pending'
+
             cursor.execute("""
-                INSERT INTO orders (order_code, user_id, customer_name, customer_phone, delivery_address, district, payment_method, payment_status, order_status, subtotal, delivery_fee, total_amount)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Confirmed', ?, ?, ?)
+                INSERT INTO orders (order_code, user_id, customer_name, customer_phone, delivery_address, district, payment_method, payment_status, order_status, subtotal, delivery_fee, total_amount, transaction_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Confirmed', ?, ?, ?, ?)
             """, (
                 order_code, user_id, customer_name, customer_phone, delivery_address, district,
-                payment_method, 'Completed' if payment_method in ['bKash', 'Nagad'] else 'Pending',
-                subtotal, delivery_fee, total_amount
+                payment_method, pay_status,
+                subtotal, delivery_fee, total_amount, trx_id
             ))
             order_id = cursor.lastrowid
 
@@ -783,6 +793,9 @@ class DatabaseAdapter:
                 'success': True,
                 'order_id': order_id,
                 'order_code': order_code,
+                'transaction_id': trx_id,
+                'payment_status': pay_status,
+                'payment_method': payment_method,
                 'total_amount': total_amount,
                 'subtotal': subtotal,
                 'delivery_fee': delivery_fee,
@@ -982,7 +995,10 @@ class DatabaseAdapter:
             old_price = float(existing['price'])
             old_stock = int(existing['stock_qty'])
             new_price = float(data.get('price', old_price))
-            new_stock = int(data.get('stock_qty', old_stock))
+            if 'stock_add' in data:
+                new_stock = old_stock + int(data['stock_add'])
+            else:
+                new_stock = int(data.get('stock_qty', old_stock))
 
             isbn = data.get('isbn', existing['isbn'])
             title = data.get('title', existing['title'])
@@ -1100,7 +1116,8 @@ class DatabaseAdapter:
         # 5. Recent Orders (Latest 10)
         cursor.execute("""
             SELECT order_id, order_code, customer_name, customer_phone, delivery_address,
-                   district, payment_method, payment_status, order_status, total_amount, created_at
+                   district, payment_method, payment_status, order_status, total_amount,
+                   COALESCE(transaction_id, '') AS transaction_id, created_at
             FROM orders
             ORDER BY created_at DESC
             LIMIT 10

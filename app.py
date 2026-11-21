@@ -284,7 +284,8 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                         total_amount=res['total_amount'],
                         delivery_address=body.get('delivery_address', ''),
                         payment_method=body.get('payment_method', 'Cash on Delivery'),
-                        items=body.get('items', [])
+                        items=body.get('items', []),
+                        transaction_id=res.get('transaction_id', '')
                     )
                     # Automatically mark status as Confirmed upon sending order confirmation email
                     if res.get('order_id'):

@@ -232,7 +232,7 @@ https://pagevault.com
 
 
 
-def send_order_confirmation_email(to_email: str, customer_name: str, order_code: str, total_amount: float, delivery_address: str, payment_method: str = "Cash on Delivery", items: list = None) -> dict:
+def send_order_confirmation_email(to_email: str, customer_name: str, order_code: str, total_amount: float, delivery_address: str, payment_method: str = "Cash on Delivery", items: list = None, transaction_id: str = "") -> dict:
     """
     Sends an order confirmation receipt email to the customer.
     Delivered to whoever placed the order and entered their email address.
@@ -254,6 +254,9 @@ def send_order_confirmation_email(to_email: str, customer_name: str, order_code:
             items_list_text += f"- {title} (x{qty}) - ৳{price:.2f}\n"
             items_list_html += f"<tr><td style='padding: 8px 0; border-bottom: 1px solid #E2DAD0;'>{title} <span style='color: #736C62;'>&times; {qty}</span></td><td style='padding: 8px 0; text-align: right; border-bottom: 1px solid #E2DAD0; font-family: monospace; font-weight: 700;'>৳{price:.2f}</td></tr>"
 
+    trx_text = f"- Transaction ID: {transaction_id}\n" if transaction_id else ""
+    trx_html = f"<div><strong>Transaction ID:</strong> <span style='font-family: monospace; font-weight: 700; color: #111111;'>{transaction_id}</span></div>" if transaction_id else ""
+
     text_content = f"""Hello {customer_name},
 
 Thank you for your order at PageVault!
@@ -263,7 +266,7 @@ Order Details:
 - Order Reference: {order_code}
 - Total Amount: ৳{total_amount:.2f}
 - Payment Method: {payment_method}
-- Delivery Address: {delivery_address}
+{trx_text}- Delivery Address: {delivery_address}
 - Estimated Delivery: 24 to 48 Hours nationwide
 
 {items_list_text}
@@ -303,6 +306,7 @@ The PageVault Team
     <div class="order-box">
       <div><strong>Order Code:</strong> <span style="font-family: monospace; color: #D9541E; font-weight: 700;">#{order_code}</span></div>
       <div><strong>Payment Method:</strong> {payment_method}</div>
+      {trx_html}
       <div><strong>Delivery Address:</strong> {delivery_address}</div>
       <div><strong>Estimated Delivery:</strong> 24–48 Hours (Nationwide)</div>
       <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #E2DAD0;">

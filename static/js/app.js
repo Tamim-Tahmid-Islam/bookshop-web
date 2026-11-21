@@ -3,6 +3,409 @@
  * Handles Cart Drawer, Transactional Checkout, Wishlist, and Book Details
  */
 
+/**
+ * PaymentGateway Simulator
+ * Provides authentic, interactive demo transaction screens for bKash, Nagad, and Debit/Credit Card.
+ */
+const PaymentGateway = {
+  activeMethod: null,
+  orderPayload: null,
+  totalAmount: 0,
+  currentStep: 1,
+  timerInterval: null,
+  timerSeconds: 45,
+
+  open(method, orderPayload, totalAmount) {
+    this.activeMethod = method;
+    this.orderPayload = orderPayload;
+    this.totalAmount = totalAmount;
+    this.currentStep = 1;
+
+    const modal = document.getElementById('payment-gateway-modal');
+    if (!modal) return;
+
+    // Set top bar styling & branding
+    const topBar = document.getElementById('pg-top-bar');
+    const brandLogoArea = document.getElementById('pg-brand-logo-area');
+    const amountVal = document.getElementById('pg-display-amount');
+    const invoiceRef = document.getElementById('pg-invoice-ref');
+
+    if (topBar) {
+      topBar.className = 'pg-top-bar';
+      if (method === 'bKash') topBar.classList.add('bkash-theme');
+      else if (method === 'Nagad') topBar.classList.add('nagad-theme');
+      else topBar.classList.add('card-theme');
+    }
+
+    if (amountVal) amountVal.textContent = `৳${totalAmount.toFixed(2)}`;
+    if (invoiceRef) invoiceRef.textContent = `PV-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    if (brandLogoArea) {
+      if (method === 'bKash') {
+        brandLogoArea.innerHTML = `<span class="pg-brand-badge" style="color: #FFFFFF;">bKash</span>`;
+      } else if (method === 'Nagad') {
+        brandLogoArea.innerHTML = `<span class="pg-brand-badge" style="color: #FFFFFF;">নগদ Nagad</span>`;
+      } else {
+        brandLogoArea.innerHTML = `<span class="pg-brand-badge" style="color: #FFFFFF;">VISA / MasterCard</span>`;
+      }
+    }
+
+    this.renderStep();
+    modal.classList.add('active');
+  },
+
+  cancel() {
+    this.clearTimer();
+    const modal = document.getElementById('payment-gateway-modal');
+    if (modal) modal.classList.remove('active');
+    showToast('Payment process cancelled. Cart items retained.', 'info');
+  },
+
+  clearTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  },
+
+  startTimer(resendElId) {
+    this.clearTimer();
+    this.timerSeconds = 45;
+    const el = document.getElementById(resendElId);
+    if (!el) return;
+    el.textContent = `(0:${this.timerSeconds < 10 ? '0' : ''}${this.timerSeconds})`;
+
+    this.timerInterval = setInterval(() => {
+      this.timerSeconds--;
+      if (this.timerSeconds <= 0) {
+        this.clearTimer();
+        const curEl = document.getElementById(resendElId);
+        if (curEl) curEl.innerHTML = `<a href="javascript:void(0)" class="pg-resend-link" onclick="PaymentGateway.resendOtp('${resendElId}')">Resend Code</a>`;
+      } else {
+        const curEl = document.getElementById(resendElId);
+        if (curEl) curEl.textContent = `(0:${this.timerSeconds < 10 ? '0' : ''}${this.timerSeconds})`;
+      }
+    }, 1000);
+  },
+
+  resendOtp(resendElId) {
+    showToast('New verification code sent: 123456', 'info');
+    this.startTimer(resendElId);
+  },
+
+  renderStep() {
+    const container = document.getElementById('pg-view-container');
+    if (!container) return;
+
+    if (this.activeMethod === 'bKash') {
+      this.renderBkash(container);
+    } else if (this.activeMethod === 'Nagad') {
+      this.renderNagad(container);
+    } else {
+      this.renderCard(container);
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // bKash Flow
+  // ---------------------------------------------------------------------------
+  renderBkash(container) {
+    if (this.currentStep === 1) {
+      const defaultPhone = this.orderPayload.customer_phone || '01712345678';
+      container.innerHTML = `
+        <div class="pg-view-title">bKash Account Number</div>
+        <div class="pg-view-subtitle">Enter your personal bKash wallet account number to initiate checkout.</div>
+        <div class="pg-form-group">
+          <label class="pg-label">bKash Mobile Number</label>
+          <input type="tel" id="bkash-phone" class="pg-input" value="${defaultPhone}" placeholder="01XXXXXXXXX" maxlength="11">
+          <span class="pg-demo-hint">&#128276; Demo Mode: Any 11-digit mobile number works</span>
+        </div>
+        <div style="font-size: 0.74rem; color: #64748B; margin-top: 10px; line-height: 1.4;">
+          By clicking <strong>Confirm</strong>, you agree to the Terms &amp; Conditions of bKash payment gateway.
+        </div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-btn pg-btn-cancel" onclick="PaymentGateway.cancel()">Close</button>
+          <button type="button" class="pg-btn pg-btn-bkash" onclick="PaymentGateway.onBkashStep1()">Confirm</button>
+        </div>
+      `;
+    } else if (this.currentStep === 2) {
+      container.innerHTML = `
+        <div class="pg-view-title">bKash Verification Code</div>
+        <div class="pg-view-subtitle">A 6-digit verification code has been sent to your bKash mobile number.</div>
+        <div class="pg-form-group">
+          <label class="pg-label">Verification Code (OTP)</label>
+          <input type="text" id="bkash-otp" class="pg-input pg-input-otp" placeholder="1 2 3 4 5 6" maxlength="6" value="123456">
+          <div class="pg-timer-row">
+            <span>Demo OTP: <strong>123456</strong></span>
+            <span id="bkash-timer-span">(0:45)</span>
+          </div>
+        </div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-btn pg-btn-cancel" onclick="PaymentGateway.goToStep(1)">Back</button>
+          <button type="button" class="pg-btn pg-btn-bkash" onclick="PaymentGateway.onBkashStep2()">Verify OTP</button>
+        </div>
+      `;
+      this.startTimer('bkash-timer-span');
+    } else if (this.currentStep === 3) {
+      container.innerHTML = `
+        <div class="pg-view-title">Enter bKash PIN</div>
+        <div class="pg-view-subtitle">Enter your 5-digit bKash PIN to confirm payment authorization.</div>
+        <div class="pg-form-group">
+          <label class="pg-label">bKash PIN</label>
+          <input type="password" id="bkash-pin" class="pg-input pg-input-otp" placeholder="• • • • •" maxlength="5" value="12345">
+          <span class="pg-demo-hint">&#128274; Demo PIN: <strong>12345</strong> (bKash never discloses your PIN)</span>
+        </div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-btn pg-btn-cancel" onclick="PaymentGateway.goToStep(2)">Back</button>
+          <button type="button" class="pg-btn pg-btn-bkash" onclick="PaymentGateway.onBkashStep3()">Confirm Payment</button>
+        </div>
+      `;
+    } else if (this.currentStep === 4) {
+      container.innerHTML = `
+        <div class="pg-spinner-wrapper">
+          <div class="pg-spinner"></div>
+          <div style="font-weight: 800; font-size: 1.1rem; color: #0F172A; margin-bottom: 6px;">Processing Payment...</div>
+          <div style="font-size: 0.85rem; color: #64748B;">Connecting to bKash Secure Gateway &amp; Verifying Transaction...</div>
+        </div>
+      `;
+    }
+  },
+
+  onBkashStep1() {
+    const phone = document.getElementById('bkash-phone').value.trim();
+    if (!phone || phone.length < 11) {
+      alert('Please enter a valid 11-digit bKash mobile number.');
+      return;
+    }
+    this.goToStep(2);
+  },
+
+  onBkashStep2() {
+    const otp = document.getElementById('bkash-otp').value.trim();
+    if (!otp || otp.length < 4) {
+      alert('Please enter the 6-digit OTP code (Demo: 123456).');
+      return;
+    }
+    this.clearTimer();
+    this.goToStep(3);
+  },
+
+  onBkashStep3() {
+    const pin = document.getElementById('bkash-pin').value.trim();
+    if (!pin || pin.length < 4) {
+      alert('Please enter your bKash PIN (Demo: 12345).');
+      return;
+    }
+    this.goToStep(4);
+    setTimeout(() => {
+      this.completeTransaction('BKSH');
+    }, 1200);
+  },
+
+  // ---------------------------------------------------------------------------
+  // Nagad Flow
+  // ---------------------------------------------------------------------------
+  renderNagad(container) {
+    if (this.currentStep === 1) {
+      const defaultPhone = this.orderPayload.customer_phone || '01812345678';
+      container.innerHTML = `
+        <div class="pg-view-title">Nagad Account Number</div>
+        <div class="pg-view-subtitle">Enter your Nagad digital wallet number to proceed with transaction.</div>
+        <div class="pg-form-group">
+          <label class="pg-label">Nagad Mobile Number</label>
+          <input type="tel" id="nagad-phone" class="pg-input" value="${defaultPhone}" placeholder="01XXXXXXXXX" maxlength="11">
+          <span class="pg-demo-hint">&#128276; Demo Mode: Any 11-digit mobile number works</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.78rem; color: #475569;">
+          <input type="checkbox" id="nagad-terms" checked>
+          <label for="nagad-terms">I agree to Nagad Merchant Payment Terms &amp; Policies</label>
+        </div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-btn pg-btn-cancel" onclick="PaymentGateway.cancel()">Cancel</button>
+          <button type="button" class="pg-btn pg-btn-nagad" onclick="PaymentGateway.onNagadStep1()">Proceed</button>
+        </div>
+      `;
+    } else if (this.currentStep === 2) {
+      container.innerHTML = `
+        <div class="pg-view-title">Nagad One-Time Password (OTP)</div>
+        <div class="pg-view-subtitle">Enter the 6-digit verification code sent to your registered Nagad number.</div>
+        <div class="pg-form-group">
+          <label class="pg-label">Nagad OTP</label>
+          <input type="text" id="nagad-otp" class="pg-input pg-input-otp" placeholder="1 2 3 4 5 6" maxlength="6" value="123456">
+          <div class="pg-timer-row">
+            <span>Demo OTP: <strong>123456</strong></span>
+            <span id="nagad-timer-span">(0:45)</span>
+          </div>
+        </div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-btn pg-btn-cancel" onclick="PaymentGateway.goToStep(1)">Back</button>
+          <button type="button" class="pg-btn pg-btn-nagad" onclick="PaymentGateway.onNagadStep2()">Proceed</button>
+        </div>
+      `;
+      this.startTimer('nagad-timer-span');
+    } else if (this.currentStep === 3) {
+      container.innerHTML = `
+        <div class="pg-view-title">Enter Nagad PIN</div>
+        <div class="pg-view-subtitle">Enter your 4-digit secret PIN to authorize the payment.</div>
+        <div class="pg-form-group">
+          <label class="pg-label">4-Digit PIN</label>
+          <input type="password" id="nagad-pin" class="pg-input pg-input-otp" placeholder="• • • •" maxlength="4" value="1234">
+          <span class="pg-demo-hint">&#128274; Demo PIN: <strong>1234</strong></span>
+        </div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-btn pg-btn-cancel" onclick="PaymentGateway.goToStep(2)">Back</button>
+          <button type="button" class="pg-btn pg-btn-nagad" onclick="PaymentGateway.onNagadStep3()">Complete Payment</button>
+        </div>
+      `;
+    } else if (this.currentStep === 4) {
+      container.innerHTML = `
+        <div class="pg-spinner-wrapper">
+          <div class="pg-spinner nagad-spinner"></div>
+          <div style="font-weight: 800; font-size: 1.1rem; color: #0F172A; margin-bottom: 6px;">Authenticating with Nagad...</div>
+          <div style="font-size: 0.85rem; color: #64748B;">Executing instant digital clearing via Bangladesh Post Office network...</div>
+        </div>
+      `;
+    }
+  },
+
+  onNagadStep1() {
+    const phone = document.getElementById('nagad-phone').value.trim();
+    if (!phone || phone.length < 11) {
+      alert('Please enter a valid 11-digit Nagad phone number.');
+      return;
+    }
+    const terms = document.getElementById('nagad-terms');
+    if (terms && !terms.checked) {
+      alert('Please accept terms and conditions to proceed.');
+      return;
+    }
+    this.goToStep(2);
+  },
+
+  onNagadStep2() {
+    const otp = document.getElementById('nagad-otp').value.trim();
+    if (!otp || otp.length < 4) {
+      alert('Please enter OTP (Demo: 123456).');
+      return;
+    }
+    this.clearTimer();
+    this.goToStep(3);
+  },
+
+  onNagadStep3() {
+    const pin = document.getElementById('nagad-pin').value.trim();
+    if (!pin || pin.length < 4) {
+      alert('Please enter your 4-digit PIN (Demo: 1234).');
+      return;
+    }
+    this.goToStep(4);
+    setTimeout(() => {
+      this.completeTransaction('NAG');
+    }, 1200);
+  },
+
+  // ---------------------------------------------------------------------------
+  // Card Flow (Visa / Mastercard)
+  // ---------------------------------------------------------------------------
+  renderCard(container) {
+    if (this.currentStep === 1) {
+      const cardName = this.orderPayload.customer_name || 'Cardholder Name';
+      container.innerHTML = `
+        <div class="pg-view-title">Cardholder &amp; Payment Details</div>
+        <div class="pg-view-subtitle">Enter your Visa or MasterCard debit/credit card details.</div>
+        <div class="pg-form-group">
+          <label class="pg-label">Cardholder Name</label>
+          <input type="text" id="card-holder" class="pg-input" value="${cardName}" placeholder="Name as printed on card">
+        </div>
+        <div class="pg-form-group">
+          <label class="pg-label">Card Number</label>
+          <input type="text" id="card-number" class="pg-input" value="4532 8920 1827 9012" placeholder="XXXX XXXX XXXX XXXX" maxlength="19">
+          <span class="pg-demo-hint">&#128179; Demo Visa Card: 4532 8920 1827 9012</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="pg-form-group">
+            <label class="pg-label">Expiry (MM/YY)</label>
+            <input type="text" id="card-exp" class="pg-input" value="12/28" placeholder="MM/YY" maxlength="5">
+          </div>
+          <div class="pg-form-group">
+            <label class="pg-label">CVV / CVC</label>
+            <input type="password" id="card-cvv" class="pg-input" value="789" placeholder="3 digits" maxlength="4">
+          </div>
+        </div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-btn pg-btn-cancel" onclick="PaymentGateway.cancel()">Cancel</button>
+          <button type="button" class="pg-btn pg-btn-card" onclick="PaymentGateway.onCardStep1()">Pay ৳${this.totalAmount.toFixed(2)}</button>
+        </div>
+      `;
+    } else if (this.currentStep === 2) {
+      container.innerHTML = `
+        <div class="pg-view-title">3D Secure Bank Authentication</div>
+        <div class="pg-view-subtitle">Verified by Visa / MasterCard Identity Check. Enter the authentication code sent to your registered mobile.</div>
+        <div class="pg-form-group">
+          <label class="pg-label">One-Time Passcode (OTP)</label>
+          <input type="text" id="card-otp" class="pg-input pg-input-otp" placeholder="1 2 3 4 5 6" maxlength="6" value="123456">
+          <span class="pg-demo-hint">&#128274; Demo Bank OTP: <strong>123456</strong></span>
+        </div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-btn pg-btn-cancel" onclick="PaymentGateway.goToStep(1)">Back</button>
+          <button type="button" class="pg-btn pg-btn-card" onclick="PaymentGateway.onCardStep2()">Submit OTP</button>
+        </div>
+      `;
+    } else if (this.currentStep === 3) {
+      container.innerHTML = `
+        <div class="pg-spinner-wrapper">
+          <div class="pg-spinner card-spinner"></div>
+          <div style="font-weight: 800; font-size: 1.1rem; color: #0F172A; margin-bottom: 6px;">Authorizing Payment...</div>
+          <div style="font-size: 0.85rem; color: #64748B;">Processing 256-bit encrypted clearance through card network...</div>
+        </div>
+      `;
+    }
+  },
+
+  onCardStep1() {
+    const cardNum = document.getElementById('card-number').value.trim();
+    if (!cardNum || cardNum.length < 12) {
+      alert('Please enter a valid card number.');
+      return;
+    }
+    this.goToStep(2);
+  },
+
+  onCardStep2() {
+    const otp = document.getElementById('card-otp').value.trim();
+    if (!otp || otp.length < 4) {
+      alert('Please enter the OTP (Demo: 123456).');
+      return;
+    }
+    this.goToStep(3);
+    setTimeout(() => {
+      this.completeTransaction('CARD');
+    }, 1200);
+  },
+
+  // ---------------------------------------------------------------------------
+  // Transition & Completion
+  // ---------------------------------------------------------------------------
+  goToStep(step) {
+    this.currentStep = step;
+    this.renderStep();
+  },
+
+  completeTransaction(prefix) {
+    this.clearTimer();
+    const modal = document.getElementById('payment-gateway-modal');
+    if (modal) modal.classList.remove('active');
+
+    // Generate realistic transaction ID (e.g. BKSH-9A82B310)
+    const randomHex = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const trxId = `${prefix}-${randomHex}`;
+
+    // Attach transaction ID to order payload and complete order placement
+    const payload = Object.assign({}, this.orderPayload, { transaction_id: trxId });
+    App.executeOrderPlacement(payload);
+  }
+};
+
 const App = {
   cart: [],
   wishlist: [],
@@ -347,6 +750,11 @@ const App = {
   async handleCheckoutSubmit(e) {
     e.preventDefault();
 
+    if (this.cart.length === 0) {
+      showToast('Your shopping cart is empty.', 'error');
+      return;
+    }
+
     const name = document.getElementById('checkout-name').value.trim();
     const phone = document.getElementById('checkout-phone').value.trim();
     const email = document.getElementById('checkout-email') ? document.getElementById('checkout-email').value.trim() : '';
@@ -354,6 +762,9 @@ const App = {
     const district = document.getElementById('checkout-district').value;
     const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
     const paymentMethod = paymentRadio ? paymentRadio.value : 'Cash on Delivery';
+
+    const subtotal = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const totalAmount = subtotal + this.deliveryFee;
 
     const orderPayload = {
       customer_name: name,
@@ -371,6 +782,16 @@ const App = {
       }))
     };
 
+    if (paymentMethod === 'Cash on Delivery') {
+      await this.executeOrderPlacement(orderPayload);
+    } else {
+      // Interactive simulated gateway for bKash, Nagad, or Debit/Credit Card
+      this.closeCheckoutModal();
+      PaymentGateway.open(paymentMethod, orderPayload, totalAmount);
+    }
+  },
+
+  async executeOrderPlacement(orderPayload) {
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -390,10 +811,33 @@ const App = {
         // Open Success Modal
         const successModal = document.getElementById('order-success-modal');
         if (successModal) {
-          document.getElementById('success-order-code').textContent = data.order_code;
-          document.getElementById('success-customer-name').textContent = name;
-          document.getElementById('success-total-amount').textContent = `৳${data.total_amount.toFixed(2)}`;
-          document.getElementById('success-payment-method').textContent = paymentMethod;
+          const codeEl = document.getElementById('success-order-code');
+          if (codeEl) codeEl.textContent = data.order_code;
+
+          const nameEl = document.getElementById('success-customer-name');
+          if (nameEl) nameEl.textContent = orderPayload.customer_name;
+
+          const amtEl = document.getElementById('success-total-amount');
+          if (amtEl) amtEl.textContent = `৳${data.total_amount.toFixed(2)}`;
+
+          const payEl = document.getElementById('success-payment-method');
+          if (payEl) payEl.textContent = orderPayload.payment_method;
+
+          const trxEl = document.getElementById('success-transaction-id');
+          if (trxEl) {
+            trxEl.textContent = data.transaction_id || orderPayload.transaction_id || 'N/A (Cash on Delivery)';
+          }
+
+          const statusEl = document.getElementById('success-payment-status');
+          if (statusEl) {
+            if (orderPayload.payment_method === 'Cash on Delivery') {
+              statusEl.className = 'status-badge status-confirmed';
+              statusEl.textContent = 'Pending (Pay on Delivery)';
+            } else {
+              statusEl.className = 'badge-status-paid';
+              statusEl.innerHTML = '&#10003; Paid &amp; Verified';
+            }
+          }
           successModal.classList.add('active');
         }
 
@@ -755,7 +1199,11 @@ const App = {
             <td>${escapeHtml(o.district || o.delivery_district || 'Dhaka')}</td>
             <td>${o.items_count || 1} titles</td>
             <td><strong style="font-family: var(--font-mono);">৳${parseFloat(o.total_amount).toFixed(2)}</strong></td>
-            <td><span class="pay-pill">${escapeHtml(o.payment_method)}</span></td>
+            <td>
+              <span class="pay-pill">${escapeHtml(o.payment_method)}</span>
+              ${o.transaction_id ? `<div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-faint); margin-top: 3px;">Trx: ${escapeHtml(o.transaction_id)}</div>` : ''}
+              <div style="margin-top: 4px;"><span class="${o.payment_status === 'Completed' ? 'badge-status-paid' : 'status-badge status-confirmed'}" style="font-size: 0.68rem; padding: 2px 6px;">${escapeHtml(o.payment_status || 'Pending')}</span></div>
+            </td>
             <td>
               <div style="display: flex; flex-direction: column; gap: 5px;">
                 <span class="status-badge status-${statusClass}">${escapeHtml(currentStatus)}</span>
@@ -1052,23 +1500,25 @@ const App = {
       showToast('Access restricted: Administrator only.', 'error');
       return;
     }
-    const qtyStr = prompt(`Restock "${title}"\nCurrent stock: ${currentStock} units.\nEnter new total stock units:`, currentStock + 25);
-    if (!qtyStr) return;
-    const newStock = parseInt(qtyStr);
-    if (isNaN(newStock) || newStock < 0) {
-      alert('Please enter a valid non-negative integer.');
+    const currentUnits = parseInt(currentStock, 10) || 0;
+    const qtyStr = prompt(`Restock Inventory: "${title}"\nCurrent In-Stock: ${currentUnits} units.\n\nHow many units would you like to ADD to stock?`, '10');
+    if (!qtyStr || !qtyStr.trim()) return;
+    const addedUnits = parseInt(qtyStr.trim(), 10);
+    if (isNaN(addedUnits) || addedUnits <= 0) {
+      alert('Please enter a valid positive number of units to add (e.g. 10).');
       return;
     }
+    const newStock = currentUnits + addedUnits;
 
     try {
       const res = await fetch(`/api/books/${bookId}/update`, {
         method: 'POST',
         headers: this.getAdminHeaders(),
-        body: JSON.stringify({ stock_qty: newStock })
+        body: JSON.stringify({ stock_add: addedUnits, stock_qty: newStock })
       });
       const result = await res.json();
       if (res.ok && result.success) {
-        showToast(`Stock updated to ${newStock} units for "${title}".`, 'success');
+        showToast(`Successfully added ${addedUnits} units! New stock: ${newStock} for "${title}".`, 'success');
         this.openAdminDashboard();
         SearchEngine.executeSearch();
       } else {

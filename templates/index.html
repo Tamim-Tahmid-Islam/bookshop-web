@@ -952,6 +952,51 @@
   </div>
 
   <!-- =========================================================================
+       Interactive Payment Gateway Simulator (bKash / Nagad / Card)
+       ========================================================================= -->
+  <div id="payment-gateway-modal" class="modal-overlay">
+    <div class="modal-container pg-modal-container">
+      <!-- Dynamic Top Branding Bar -->
+      <div id="pg-top-bar" class="pg-top-bar bkash-theme">
+        <div class="pg-header-flex">
+          <div class="pg-brand-meta">
+            <div id="pg-brand-logo-area" class="pg-brand-logo">
+              <!-- Rendered logo/text -->
+            </div>
+            <div class="pg-merchant-info">
+              <span class="pg-merchant-label">Merchant</span>
+              <span class="pg-merchant-name">PageVault Online Bookshop</span>
+            </div>
+          </div>
+          <button type="button" class="pg-close-x" onclick="PaymentGateway.cancel()" title="Cancel Transaction">&times;</button>
+        </div>
+
+        <div class="pg-amount-strip">
+          <div class="pg-amount-col">
+            <span class="pg-strip-label">Invoice Reference</span>
+            <span class="pg-strip-val" id="pg-invoice-ref">PV-ORDER</span>
+          </div>
+          <div class="pg-amount-col" style="text-align: right;">
+            <span class="pg-strip-label">Payable Amount</span>
+            <span class="pg-strip-val pg-amount-highlight" id="pg-display-amount">৳0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gateway Dynamic Body View -->
+      <div id="pg-view-container" class="pg-view-container">
+        <!-- Injected dynamically based on method & step -->
+      </div>
+
+      <!-- Gateway Footer Security Strip -->
+      <div class="pg-security-strip">
+        <span class="pg-sec-lock">&#128274; 256-Bit SSL Encrypted Sandbox Gateway</span>
+        <span class="pg-sec-demo-badge">Interactive Demo Mode</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
        Order Success Modal
        ========================================================================= -->
   <div id="order-success-modal" class="modal-overlay">
@@ -967,6 +1012,8 @@
         <div><strong>Customer:</strong> <span id="success-customer-name">User</span></div>
         <div><strong>Total Amount:</strong> <span id="success-total-amount" style="font-weight: 800; color: var(--ink-black);">৳0.00</span></div>
         <div><strong>Payment Method:</strong> <span id="success-payment-method">bKash</span></div>
+        <div id="success-transaction-row"><strong>Transaction ID:</strong> <span id="success-transaction-id" style="font-family: var(--font-mono); color: var(--ink-black); font-weight: 700;">N/A</span></div>
+        <div><strong>Payment Status:</strong> <span id="success-payment-status" class="status-badge status-confirmed">Completed</span></div>
         <div><strong>Estimated Delivery:</strong> <span>24 to 48 Hours</span></div>
       </div>
 
