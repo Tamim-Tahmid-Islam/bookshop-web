@@ -1064,7 +1064,7 @@
   </div>
 
   <!-- Customer Support & Inquiry Modal -->
-  <div id="customer-query-modal" class="modal-overlay">
+  <div id="customer-query-modal" class="modal-overlay" onclick="if(event.target === this) App.closeQueryModal()">
     <div class="modal-container" style="max-width: 540px;">
       <div class="modal-header">
         <div>
@@ -1122,10 +1122,10 @@
 
           <div id="query-feedback" style="display: none; padding: 12px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;"></div>
 
-          <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+          <div class="modal-actions-bar">
             <button type="button" class="btn btn-secondary" onclick="App.closeQueryModal()">Cancel</button>
-            <button type="submit" id="query-submit-btn" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="submit" id="query-submit-btn" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
               </svg>

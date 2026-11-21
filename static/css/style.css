@@ -3389,3 +3389,68 @@ body:not(.page-revealed) .site-footer {
     padding: 16px 16px 12px !important;
   }
 }
+
+/* =========================================================================
+   Modal Actions & Button System (PageVault Luxury Styling)
+   ========================================================================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.btn-primary {
+  background: var(--burnt-orange);
+  color: #FFFFFF;
+  border: none;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(217, 84, 30, 0.35);
+}
+
+.btn-primary:hover {
+  background: var(--burnt-orange-hover);
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 18px rgba(217, 84, 30, 0.5);
+  color: #FFFFFF;
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: #FAF7F2;
+  color: var(--ink-charcoal);
+  border: 1.5px solid var(--cream-border);
+}
+
+.btn-secondary:hover {
+  background: var(--cream-border);
+  color: var(--ink-black);
+  border-color: #D3C9BD;
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.modal-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--cream-border);
+}
+

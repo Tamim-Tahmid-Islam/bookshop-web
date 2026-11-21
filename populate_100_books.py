@@ -514,7 +514,11 @@ def seed_into_cursor(cursor):
         page_count = b[10]
         auth_id = b[11]
         desc = b[12]
-        cover_image = f"/static/img/covers/book_{b_id}.svg"
+        jpg_filename = f"book_{b_id}.jpg"
+        if os.path.exists(os.path.join(COVERS_DIR, jpg_filename)):
+            cover_image = f"/static/img/covers/{jpg_filename}"
+        else:
+            cover_image = f"/static/img/covers/book_{b_id}.svg"
 
         books_insert.append((
             b_id, isbn, title, subtitle, pub_id, cat_id, price, discount_pct,
