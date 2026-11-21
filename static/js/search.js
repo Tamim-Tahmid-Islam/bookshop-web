@@ -748,15 +748,6 @@ const SearchEngine = {
       `;
       return;
     }
-                <line x1="9" y1="11" x2="15" y2="11"></line>
-              </svg>
-              <span>Request This Book</span>
-            </button>
-          </div>
-        </div>
-      `;
-      return;
-    }
 
     const wishlist = App.wishlist || [];
 
