@@ -289,6 +289,11 @@ const SearchEngine = {
     });
 
     this.executeSearch();
+
+    // Auto-dismiss sidebar on phone when category is picked to reveal book catalog
+    if (window.innerWidth <= 900 && typeof App !== 'undefined' && App.closeMobileSidebar) {
+      App.closeMobileSidebar();
+    }
   },
 
   resetFilters() {

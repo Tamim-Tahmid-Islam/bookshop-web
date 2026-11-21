@@ -35,7 +35,7 @@
        ========================================================================= -->
   <header class="navbar">
     <div class="nav-left">
-      <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Toggle Categories Side Menu" aria-label="Toggle Side Menu">
+      <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="App.toggleSidebar(event)" title="Toggle Categories Side Menu" aria-label="Toggle Side Menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="3" y1="12" x2="21" y2="12"></line>
           <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -129,6 +129,9 @@
     </div>
   </header>
 
+  <!-- Sidebar Backdrop Overlay for Mobile Touch Dismissal -->
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="App.closeMobileSidebar(event)" aria-hidden="true"></div>
+
   <!-- =========================================================================
        2. Application Body: Sidebar Menu + Main Catalog View
        ========================================================================= -->
@@ -136,6 +139,20 @@
     
     <!-- Side Menu (Sidebar Navigation) -->
     <aside id="sidebar" class="sidebar">
+      <!-- Mobile Sidebar Header with 3-bar and Close Buttons -->
+      <div class="sidebar-mobile-header">
+        <div class="sidebar-mobile-header-left">
+          <button type="button" class="sidebar-mobile-toggle-btn" id="sidebar-mobile-toggle-btn" onclick="App.closeMobileSidebar(event)" aria-label="Close menu" title="Close Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <span class="sidebar-mobile-heading">Disciplines &amp; Filters</span>
+        </div>
+        <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" onclick="App.closeMobileSidebar(event)" aria-label="Close menu">&times;</button>
+      </div>
       <!-- Section 1: Categories -->
       <div class="filter-section">
         <h4 class="filter-title">

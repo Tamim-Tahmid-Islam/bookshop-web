@@ -464,20 +464,94 @@ const App = {
     if (modalCount) modalCount.textContent = this.wishlist.length;
   },
 
+  // -------------------------------------------------------------------------
+  // Sidebar Navigation (Desktop Collapse & Mobile Responsive Drawer)
+  // -------------------------------------------------------------------------
+  toggleSidebar(e) {
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const toggleBtn = document.getElementById('sidebar-toggle-btn');
+    if (!sidebar) return;
+
+    if (window.innerWidth <= 900) {
+      const isOpen = sidebar.classList.contains('mobile-open');
+      if (isOpen) {
+        this.closeMobileSidebar(e);
+      } else {
+        sidebar.classList.add('mobile-open');
+        if (overlay) overlay.classList.add('active');
+        if (toggleBtn) toggleBtn.classList.add('active');
+        document.body.classList.add('sidebar-open-locked');
+      }
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
+  },
+
+  closeMobileSidebar(e) {
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const toggleBtn = document.getElementById('sidebar-toggle-btn');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (overlay) overlay.classList.remove('active');
+    if (toggleBtn) toggleBtn.classList.remove('active');
+    document.body.classList.remove('sidebar-open-locked');
+  },
+
   bindGlobalEvents() {
     // Sidebar toggle (desktop collapse + mobile toggle)
     const toggleBtn = document.getElementById('sidebar-toggle-btn');
-    const sidebar = document.getElementById('sidebar');
-
-    if (toggleBtn && sidebar) {
-      toggleBtn.addEventListener('click', () => {
-        if (window.innerWidth <= 900) {
-          sidebar.classList.toggle('mobile-open');
-        } else {
-          sidebar.classList.toggle('collapsed');
-        }
-      });
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', (e) => this.toggleSidebar(e));
     }
+
+    // Mobile sidebar overlay touch / click dismissal
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    if (sidebarOverlay) {
+      sidebarOverlay.addEventListener('click', (e) => this.closeMobileSidebar(e));
+      sidebarOverlay.addEventListener('touchstart', (e) => this.closeMobileSidebar(e), { passive: true });
+    }
+
+    // Mobile sidebar header 3-bar and close buttons
+    const mobileCloseBtn = document.getElementById('sidebar-close-btn');
+    if (mobileCloseBtn) {
+      mobileCloseBtn.addEventListener('click', (e) => this.closeMobileSidebar(e));
+    }
+
+    const mobileToggleBtn = document.getElementById('sidebar-mobile-toggle-btn');
+    if (mobileToggleBtn) {
+      mobileToggleBtn.addEventListener('click', (e) => this.closeMobileSidebar(e));
+    }
+
+    // Tap/click randomly anywhere outside sidebar on phone to dismiss immediately
+    const handleOutsideSidebarClick = (e) => {
+      if (window.innerWidth > 900) return;
+      const sidebar = document.getElementById('sidebar');
+      if (!sidebar || !sidebar.classList.contains('mobile-open')) return;
+      const tBtn = document.getElementById('sidebar-toggle-btn');
+      if (sidebar.contains(e.target)) return;
+      if (tBtn && (tBtn === e.target || tBtn.contains(e.target))) return;
+      this.closeMobileSidebar(e);
+    };
+
+    document.addEventListener('click', handleOutsideSidebarClick);
+    document.addEventListener('touchstart', handleOutsideSidebarClick, { passive: true });
+
+    // Escape key closes mobile sidebar
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar && sidebar.classList.contains('mobile-open')) {
+          this.closeMobileSidebar(e);
+        }
+      }
+    });
 
     // Modal background click to close
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
