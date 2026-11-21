@@ -300,7 +300,7 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path == '/api/orders':
             res = db.create_order(body)
             if res['success']:
-                customer_email = (body.get('customer_email') or body.get('email') or '').strip()
+                customer_email = (body.get('customer_email') or body.get('email') or res.get('customer_email') or '').strip()
                 user_id = body.get('user_id')
                 if not customer_email and user_id:
                     try:
@@ -310,11 +310,25 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                     except Exception as err:
                         print(f"[Order] Could not retrieve user email from user_id: {err}")
 
-                # Send order confirmation email (to customer and alerts admin desk)
+                customer_name = (body.get('customer_name') or res.get('customer_name') or '').strip()
+                if not customer_name and user_id:
+                    try:
+                        u_info = db.get_user_by_id(user_id)
+                        if u_info and u_info.get('full_name'):
+                            customer_name = u_info['full_name'].strip()
+                    except Exception:
+                        pass
+                if not customer_name:
+                    customer_name = 'Customer'
+
+                # Send order confirmation email
+                # Delivered to the customer's personal email (if specified/signed in) AND alerts operations desk
                 try:
+                    target_cust_email = customer_email or "tamimtahmid270@gmail.com"
+                    print(f"[Order] Delivering confirmation receipt to customer account: {target_cust_email}")
                     email_result = mailer.send_order_confirmation_email(
-                        to_email=customer_email or "tamimtahmid270@gmail.com",
-                        customer_name=body.get('customer_name', 'Customer'),
+                        to_email=target_cust_email,
+                        customer_name=customer_name,
                         order_code=res['order_code'],
                         total_amount=res['total_amount'],
                         delivery_address=body.get('delivery_address', ''),

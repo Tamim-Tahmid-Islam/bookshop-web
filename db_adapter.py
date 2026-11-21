@@ -777,6 +777,8 @@ class DatabaseAdapter:
                 'success': True,
                 'order_id': order_id,
                 'order_code': order_code,
+                'customer_email': customer_email,
+                'customer_name': customer_name,
                 'created_at': created_at_str,
                 'transaction_id': trx_id,
                 'payment_status': pay_status,
@@ -811,6 +813,26 @@ class DatabaseAdapter:
         if user:
             return dict(user)
         return None
+
+    def get_user_by_id(self, user_id: int):
+        """Retrieve user profile by primary key user_id."""
+        if not user_id:
+            return None
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT user_id, username, email, full_name, role, status
+                FROM users
+                WHERE user_id = ?
+            """, (int(user_id),))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        except Exception as e:
+            print(f"[DB] Error in get_user_by_id({user_id}): {e}")
+            return None
+        finally:
+            conn.close()
 
     def register_user(self, username: str, email: str, password: str, full_name: str, role='Customer'):
         """Registers a new user into the database."""

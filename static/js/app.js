@@ -795,16 +795,22 @@ const App = {
     const modal = document.getElementById('checkout-modal');
     if (!modal) return;
 
-    // Auto-fill logged in user info if available
+    // Auto-fill and guarantee logged in user info
+    const authBadge = document.getElementById('checkout-auth-badge');
+    const authName = document.getElementById('checkout-auth-name');
+    const authEmail = document.getElementById('checkout-auth-email');
+    const nameField = document.getElementById('checkout-name');
+    const emailField = document.getElementById('checkout-email');
+
     if (Auth.currentUser) {
-      const nameField = document.getElementById('checkout-name');
-      if (nameField && (!nameField.value || !nameField.value.trim())) {
-        nameField.value = Auth.currentUser.full_name || '';
-      }
-      const emailField = document.getElementById('checkout-email');
-      if (emailField && (!emailField.value || !emailField.value.trim())) {
-        emailField.value = Auth.currentUser.email || '';
-      }
+      if (authBadge) authBadge.style.display = 'flex';
+      if (authName) authName.textContent = Auth.currentUser.full_name || Auth.currentUser.username || 'Customer';
+      if (authEmail) authEmail.textContent = Auth.currentUser.email || '';
+
+      if (nameField) nameField.value = Auth.currentUser.full_name || Auth.currentUser.username || '';
+      if (emailField) emailField.value = Auth.currentUser.email || '';
+    } else {
+      if (authBadge) authBadge.style.display = 'none';
     }
 
     const subtotal = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -843,7 +849,7 @@ const App = {
       return;
     }
 
-    const name = document.getElementById('checkout-name').value.trim();
+    const name = (document.getElementById('checkout-name').value.trim()) || (Auth.currentUser ? (Auth.currentUser.full_name || Auth.currentUser.username) : 'Valued Customer');
     const phone = document.getElementById('checkout-phone').value.trim();
     let email = document.getElementById('checkout-email') ? document.getElementById('checkout-email').value.trim() : '';
     if (!email && Auth.currentUser && Auth.currentUser.email) {
