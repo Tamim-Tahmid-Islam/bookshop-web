@@ -124,6 +124,17 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json(200, {'success': True, 'requests': requests})
             return
 
+        # 3.4 API: User Orders History (with 12-hour cancellation status)
+        if path == '/api/user/orders':
+            user_id = flat_params.get('user_id')
+            email = flat_params.get('email')
+            phone = flat_params.get('phone')
+            name = flat_params.get('name')
+            order_code = flat_params.get('order_code')
+            orders = db.get_user_orders(user_id=user_id, email=email, phone=phone, order_code=order_code, name=name)
+            self._send_json(200, {'success': True, 'orders': orders})
+            return
+
         # 4. API: Single Book details
         if path.startswith('/api/books/'):
             try:
@@ -324,6 +335,41 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             res = db.update_order_status(order_id, new_status)
             self._send_json(200 if res['success'] else 400, res)
+            return
+
+        # 6.2 API: Cancel Order (Customer 12-hour self-cancellation & online refund)
+        if path == '/api/orders/cancel':
+            order_id = body.get('order_id')
+            if not order_id:
+                self._send_json(400, {'success': False, 'message': 'order_id is required.'})
+                return
+            user_id = body.get('user_id')
+            user_email = body.get('email') or body.get('user_email')
+            cancel_reason = body.get('cancel_reason') or 'Customer requested cancellation'
+            res = db.cancel_user_order(int(order_id), user_id=user_id, user_email=user_email, cancel_reason=cancel_reason)
+            if res.get('success'):
+                # Dispatch cancellation email
+                cust_email = res.get('customer_email') or user_email
+                if cust_email:
+                    try:
+                        mailer.send_order_cancellation_email(
+                            customer_name=res.get('customer_name', 'Customer'),
+                            customer_email=cust_email,
+                            order_code=res.get('order_code', ''),
+                            total_amount=res.get('total_amount', 0.0),
+                            delivery_fee=res.get('delivery_fee', 60.0),
+                            refund_amount=res.get('refund_amount', 0.0),
+                            payment_method=res.get('payment_method', 'Cash on Delivery'),
+                            is_online_paid=res.get('is_online_paid', False),
+                            cancel_reason=res.get('cancel_reason', ''),
+                            placed_at=res.get('placed_at', ''),
+                            cancelled_at=res.get('cancelled_at', '')
+                        )
+                    except Exception as email_err:
+                        print(f"[App] Order cancellation email dispatch error: {email_err}")
+                self._send_json(200, res)
+            else:
+                self._send_json(400, res)
             return
 
         # 7. API: Customer Support Query (Dispatches email to tamimtahmid270@gmail.com)

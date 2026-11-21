@@ -718,3 +718,135 @@ tamimtahmid270@gmail.com
         'message': 'Your book request has been submitted and queued for catalog sourcing.'
     }
 
+
+def send_order_cancellation_email(customer_name: str, customer_email: str, order_code: str,
+                                 total_amount: float, delivery_fee: float, refund_amount: float,
+                                 payment_method: str, is_online_paid: bool, cancel_reason: str = "",
+                                 placed_at: str = "", cancelled_at: str = "") -> dict:
+    """
+    Sends order cancellation and refund confirmation email to customer,
+    and alerts PageVault administrative desk (tamimtahmid270@gmail.com).
+    """
+    admin_recipient = "tamimtahmid270@gmail.com"
+    cfg = load_email_config()
+    sender_email = cfg.get('sender_email') or admin_recipient
+    sender_name = cfg.get('sender_name') or "PageVault Support"
+    brevo_key = os.environ.get('BREVO_API_KEY', '').strip()
+
+    admin_subject = f"[Order Cancelled] #{order_code} - by {customer_name}"
+    admin_text = f"""Order #{order_code} has been cancelled by customer within the 12-hour window.
+
+Customer: {customer_name} ({customer_email})
+Order Reference: #{order_code}
+Payment Method: {payment_method}
+Total Amount: ৳{total_amount:.2f}
+Delivery Fee (Deducted): ৳{delivery_fee:.2f}
+Net Refund Initiated: ৳{refund_amount:.2f}
+Online Paid: {'Yes' if is_online_paid else 'No (Cash on Delivery)'}
+Cancellation Reason: {cancel_reason or 'Customer self-cancellation'}
+Placed At: {placed_at}
+Cancelled At: {cancelled_at or datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+Note: Inventory items have been automatically restored to catalog stock.
+"""
+    admin_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #F3EEE3; padding: 24px; color: #111;">
+  <div style="max-width: 580px; margin: 0 auto; background: #FFF; border-radius: 14px; border: 1px solid #E2DAD0; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+    <div style="font-size: 22px; font-weight: 800; color: #111; margin-bottom: 8px;">Page<span style="color: #D9541E;">Vault</span> Operations Desk</div>
+    <div style="display: inline-block; background: #FEE2E2; color: #B91C1C; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 12px; margin-bottom: 20px;">🚫 Order Cancelled (Within 12h)</div>
+    
+    <div style="background: #FAF7F2; border: 1px solid #E2DAD0; border-radius: 10px; padding: 18px; margin-bottom: 20px; font-size: 14px; line-height: 1.8;">
+      <div><strong>Order Code:</strong> <span style="font-family: monospace; color: #D9541E; font-weight: 700;">#{order_code}</span></div>
+      <div><strong>Customer:</strong> {customer_name} (<a href="mailto:{customer_email}" style="color: #D9541E;">{customer_email}</a>)</div>
+      <div><strong>Payment Method:</strong> {payment_method}</div>
+      <div><strong>Total Amount:</strong> ৳{total_amount:.2f}</div>
+      {f'<div><strong>Deducted Delivery Fee:</strong> ৳{delivery_fee:.2f}</div><div><strong>Net Refund:</strong> ৳{refund_amount:.2f}</div>' if is_online_paid else '<div><strong>Type:</strong> Cash on Delivery (Zero fees)</div>'}
+      <div><strong>Reason:</strong> {cancel_reason or 'Customer requested'}</div>
+      <div><strong>Cancelled At:</strong> {cancelled_at or 'Just now'}</div>
+    </div>
+    <p style="font-size: 13px; color: #666;">Catalog inventory for this order has been automatically replenished.</p>
+  </div>
+</body>
+</html>
+"""
+
+    admin_delivered = False
+    delivery_method = 'outbox_logged'
+
+    if brevo_key:
+        ok, detail = send_via_brevo_api(brevo_key, sender_email, sender_name, admin_recipient, admin_subject, admin_html, admin_text)
+        if ok:
+            admin_delivered = True
+            delivery_method = 'brevo_api'
+            log_to_outbox(admin_recipient, admin_subject, "Order Cancellation", True, "Delivered via Brevo API")
+        else:
+            log_to_outbox(admin_recipient, admin_subject, "Order Cancellation", False, detail)
+
+    # Customer notification email
+    if customer_email and '@' in customer_email:
+        cust_subject = f"Order Cancelled: #{order_code} - PageVault"
+        
+        refund_clause_text = f"""
+Refund Information:
+Since your order was paid online via {payment_method}, a refund of ৳{refund_amount:.2f} has been initiated to your account.
+As per our 12-hour cancellation policy, the delivery processing fee (৳{delivery_fee:.2f}) has been deducted.
+The refund will reflect in your payment account within 3 to 5 business days.
+""" if is_online_paid else """
+Refund Information:
+Since this order was scheduled for Cash on Delivery, no payment was charged and your order has been cancelled with zero fees.
+"""
+
+        cust_text = f"""Hello {customer_name},
+
+Your order #{order_code} has been successfully cancelled per your request within the 12-hour policy window.
+
+Order Code: #{order_code}
+{refund_clause_text}
+
+Cancellation Reason: {cancel_reason or 'Customer request'}
+
+If you need any further assistance, please contact our support desk at tamimtahmid270@gmail.com.
+
+Warm regards,
+PageVault Customer Care
+"""
+
+        cust_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #F3EEE3; padding: 24px; color: #111;">
+  <div style="max-width: 540px; margin: 0 auto; background: #FFF; border-radius: 14px; border: 1px solid #E2DAD0; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+    <div style="font-size: 22px; font-weight: 800; color: #111; margin-bottom: 12px; text-align: center;">Page<span style="color: #D9541E;">Vault</span> Customer Care</div>
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="background: #FEE2E2; color: #B91C1C; font-size: 13px; font-weight: 700; padding: 4px 14px; border-radius: 12px;">Order Cancelled</span>
+    </div>
+    <p style="font-size: 15px; line-height: 1.6;">Hello <strong>{customer_name}</strong>,</p>
+    <p style="font-size: 14px; line-height: 1.6; color: #444;">
+      Your order <strong style="color: #D9541E;">#{order_code}</strong> has been cancelled successfully as requested within our 12-hour window.
+    </p>
+
+    <div style="background: #FAF7F2; border-radius: 10px; border: 1px solid #E2DAD0; padding: 18px; margin: 20px 0; font-size: 14px; line-height: 1.8;">
+      {'<div style="color: #111; font-weight: 700; margin-bottom: 8px;">💳 Refund Breakdown:</div>' if is_online_paid else ''}
+      <div><strong>Payment Method:</strong> {payment_method}</div>
+      <div><strong>Total Amount:</strong> ৳{total_amount:.2f}</div>
+      {f'''<div><strong>Deducted Delivery Fee:</strong> -৳{delivery_fee:.2f}</div>
+      <div style="font-size: 16px; font-weight: 800; color: #065F46; margin-top: 6px; border-top: 1px dashed #E2DAD0; padding-top: 6px;">
+        Net Refund Amount: ৳{refund_amount:.2f}
+      </div>
+      <div style="font-size: 12px; color: #666; margin-top: 6px;">Your refund will be credited back to your {payment_method} account within 3 to 5 business days.</div>
+      ''' if is_online_paid else '<div style="color: #065F46; font-weight: 600; margin-top: 6px;">Zero charges incurred (Cash on Delivery).</div>'}
+    </div>
+
+    <p style="font-size: 13px; color: #736C62;">If you cancelled by mistake or have any questions, our support desk is always here to help at <a href="mailto:tamimtahmid270@gmail.com" style="color: #D9541E; font-weight: 600;">tamimtahmid270@gmail.com</a>.</p>
+    <div style="font-size: 12px; color: #999; border-top: 1px solid #E2DAD0; padding-top: 14px; text-align: center; margin-top: 24px;">&copy; 2026 PageVault &bull; Dhaka, Bangladesh</div>
+  </div>
+</body>
+</html>
+"""
+        if brevo_key:
+            send_via_brevo_api(brevo_key, sender_email, sender_name, customer_email, cust_subject, cust_html, cust_text)
+
+    return {'delivered': admin_delivered, 'message': 'Cancellation notifications dispatched.'}
+

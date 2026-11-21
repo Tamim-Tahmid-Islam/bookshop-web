@@ -162,6 +162,7 @@ class DatabaseAdapter:
             order_code TEXT NOT NULL UNIQUE,
             user_id INTEGER,
             customer_name TEXT NOT NULL,
+            customer_email TEXT DEFAULT '',
             customer_phone TEXT NOT NULL,
             delivery_address TEXT NOT NULL,
             district TEXT NOT NULL DEFAULT 'Dhaka',
@@ -172,6 +173,10 @@ class DatabaseAdapter:
             delivery_fee REAL NOT NULL,
             total_amount REAL NOT NULL,
             transaction_id TEXT DEFAULT '',
+            cancelled_at DATETIME DEFAULT NULL,
+            cancel_reason TEXT DEFAULT '',
+            refund_amount REAL DEFAULT 0.0,
+            refund_status TEXT DEFAULT '',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
         );
@@ -237,11 +242,19 @@ class DatabaseAdapter:
         CREATE INDEX IF NOT EXISTS idx_book_requests_email ON book_requests (requester_email);
         """)
 
-        # Ensure transaction_id column exists in existing database files
-        try:
-            cursor.execute("ALTER TABLE orders ADD COLUMN transaction_id TEXT DEFAULT ''")
-        except Exception:
-            pass
+        # Ensure transaction_id and new order tracking columns exist in existing database files
+        for col_stmt in [
+            "ALTER TABLE orders ADD COLUMN transaction_id TEXT DEFAULT ''",
+            "ALTER TABLE orders ADD COLUMN customer_email TEXT DEFAULT ''",
+            "ALTER TABLE orders ADD COLUMN cancelled_at DATETIME DEFAULT NULL",
+            "ALTER TABLE orders ADD COLUMN cancel_reason TEXT DEFAULT ''",
+            "ALTER TABLE orders ADD COLUMN refund_amount REAL DEFAULT 0.0",
+            "ALTER TABLE orders ADD COLUMN refund_status TEXT DEFAULT ''"
+        ]:
+            try:
+                cursor.execute(col_stmt)
+            except Exception:
+                pass
 
         # Check if seed data exists or requires full 100 catalog expansion
         cursor.execute("SELECT COUNT(*) AS cnt FROM books WHERE is_deleted = 0")
@@ -670,6 +683,7 @@ class DatabaseAdapter:
         5. Commits transaction or rolls back on any error
         """
         customer_name = order_data.get('customer_name', '').strip()
+        customer_email = (order_data.get('customer_email') or order_data.get('email') or '').strip()
         customer_phone = order_data.get('customer_phone', '').strip()
         delivery_address = order_data.get('delivery_address', '').strip()
         district = order_data.get('district', 'Dhaka')
@@ -712,17 +726,23 @@ class DatabaseAdapter:
             # 2. Generate unique Order Code
             order_code = f"PV-{int(time.time()) % 1000000:06d}-{secrets.randbelow(900)+100}"
 
-            # 3. Insert Order
+            # 3. Insert Order with exact placement date and time
+            now_dt = datetime.now()
+            created_at_str = now_dt.strftime('%Y-%m-%d %H:%M:%S')
             trx_id = order_data.get('transaction_id', '')
             pay_status = 'Completed' if payment_method in ['bKash', 'Nagad', 'Card'] or trx_id else 'Pending'
 
             cursor.execute("""
-                INSERT INTO orders (order_code, user_id, customer_name, customer_phone, delivery_address, district, payment_method, payment_status, order_status, subtotal, delivery_fee, total_amount, transaction_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Confirmed', ?, ?, ?, ?)
+                INSERT INTO orders (
+                    order_code, user_id, customer_name, customer_email, customer_phone,
+                    delivery_address, district, payment_method, payment_status,
+                    order_status, subtotal, delivery_fee, total_amount, transaction_id, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Confirmed', ?, ?, ?, ?, ?)
             """, (
-                order_code, user_id, customer_name, customer_phone, delivery_address, district,
-                payment_method, pay_status,
-                subtotal, delivery_fee, total_amount, trx_id
+                order_code, user_id, customer_name, customer_email, customer_phone,
+                delivery_address, district, payment_method, pay_status,
+                subtotal, delivery_fee, total_amount, trx_id, created_at_str
             ))
             order_id = cursor.lastrowid
 
@@ -747,6 +767,7 @@ class DatabaseAdapter:
                 'success': True,
                 'order_id': order_id,
                 'order_code': order_code,
+                'created_at': created_at_str,
                 'transaction_id': trx_id,
                 'payment_status': pay_status,
                 'payment_method': payment_method,
@@ -1040,9 +1061,236 @@ class DatabaseAdapter:
         except Exception as e:
             conn.close()
             return {'success': False, 'message': str(e)}
+
+    def _parse_order_datetime(self, dt_val):
+        """Helper to parse order timestamps reliably across formats."""
+        if not dt_val:
+            return datetime.now()
+        if isinstance(dt_val, datetime):
+            return dt_val
+        dt_str = str(dt_val).strip()
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d'):
+            try:
+                return datetime.strptime(dt_str[:19], fmt)
+            except (ValueError, TypeError):
+                continue
+        return datetime.now()
+
+    def get_user_orders(self, user_id=None, email=None, phone=None, order_code=None, name=None, limit: int = 50):
+        """
+        Retrieves customer order history with item details, elapsed placement time, and 12-hour cancellation status.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        where_parts = []
+        params = []
+
+        if order_code:
+            where_parts.append("LOWER(o.order_code) = LOWER(?)")
+            params.append(order_code.strip())
+        elif user_id or email or phone or name:
+            sub = []
+            if user_id:
+                sub.append("o.user_id = ?")
+                params.append(int(user_id))
+            if email:
+                sub.append("(o.customer_email != '' AND LOWER(o.customer_email) = LOWER(?))")
+                params.append(email.strip())
+            if phone:
+                sub.append("o.customer_phone = ?")
+                params.append(phone.strip())
+            if name:
+                sub.append("(o.customer_name != '' AND LOWER(o.customer_name) = LOWER(?))")
+                params.append(name.strip())
+            where_parts.append(f"({' OR '.join(sub)})")
+        else:
+            conn.close()
+            return []
+
+        where_sql = " AND ".join(where_parts)
+        sql = f"""
+            SELECT o.order_id, o.order_code, o.user_id, o.customer_name, o.customer_email, o.customer_phone,
+                   o.delivery_address, o.district, o.payment_method, o.payment_status, o.order_status,
+                   o.subtotal, o.delivery_fee, o.total_amount, o.transaction_id,
+                   o.cancelled_at, o.cancel_reason, o.refund_amount, o.refund_status,
+                   o.created_at
+            FROM orders o
+            WHERE {where_sql}
+            ORDER BY o.created_at DESC, o.order_id DESC
+            LIMIT ?
+        """
+        params.append(limit)
+        cursor.execute(sql, params)
+        orders = [dict(r) for r in cursor.fetchall()]
+
+        now = datetime.now()
+        twelve_hours_sec = 12 * 3600
+
+        for order in orders:
+            # Fetch ordered items
+            cursor.execute("""
+                SELECT oi.item_id, oi.book_id, oi.quantity, oi.unit_price, oi.total_price,
+                       b.title, b.cover_image, b.publication_year, c.name AS category_name
+                FROM order_items oi
+                LEFT JOIN books b ON oi.book_id = b.book_id
+                LEFT JOIN categories c ON b.category_id = c.category_id
+                WHERE oi.order_id = ?
+            """, (order['order_id'],))
+            order['items'] = [dict(it) for it in cursor.fetchall()]
+
+            # Parse created_at and calculate 12-hour eligibility
+            created_dt = self._parse_order_datetime(order.get('created_at'))
+            elapsed = (now - created_dt).total_seconds()
+            is_cancelled = (order.get('order_status') == 'Cancelled')
+
+            can_cancel = (not is_cancelled) and (elapsed <= twelve_hours_sec) and (order.get('order_status') in ['Confirmed', 'Pending', 'Processing'])
+            remaining_sec = max(0, int(twelve_hours_sec - elapsed)) if can_cancel else 0
+            hours_left = remaining_sec // 3600
+            mins_left = (remaining_sec % 3600) // 60
+
+            payment_method = order.get('payment_method') or 'Cash on Delivery'
+            is_online_paid = payment_method in ['bKash', 'Nagad', 'Card'] or order.get('payment_status') in ['Completed', 'Paid']
+
+            total_amount = float(order.get('total_amount') or 0.0)
+            delivery_fee = float(order.get('delivery_fee') or 60.0)
+            subtotal = float(order.get('subtotal') or max(0.0, total_amount - delivery_fee))
+            refundable_amount = round(max(0.0, total_amount - delivery_fee), 2) if is_online_paid else 0.0
+
+            order['can_cancel'] = can_cancel
+            order['is_cancelled'] = is_cancelled
+            order['remaining_seconds'] = remaining_sec
+            order['hours_left'] = hours_left
+            order['mins_left'] = mins_left
+            order['is_online_paid'] = is_online_paid
+            order['refundable_amount'] = refundable_amount
+            order['formatted_created_at'] = created_dt.strftime('%d %b %Y, %I:%M %p')
+            if order.get('cancelled_at'):
+                cancelled_dt = self._parse_order_datetime(order.get('cancelled_at'))
+                order['formatted_cancelled_at'] = cancelled_dt.strftime('%d %b %Y, %I:%M %p')
+            else:
+                order['formatted_cancelled_at'] = ''
+
+        conn.close()
+        return orders
+
+    def cancel_user_order(self, order_id: int, user_id=None, user_email=None, cancel_reason='Customer requested cancellation'):
+        """
+        Executes order cancellation with:
+        1. 12-hour policy window check
+        2. Inventory replenishment
+        3. Automatic refund calculation (delivery fee deducted for online payments)
+        4. ACID transactional persistence
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                SELECT order_id, order_code, user_id, customer_name, customer_email, customer_phone,
+                       payment_method, payment_status, order_status, subtotal, delivery_fee, total_amount,
+                       created_at
+                FROM orders
+                WHERE order_id = ?
+            """, (order_id,))
+            order_row = cursor.fetchone()
+            if not order_row:
+                conn.close()
+                return {'success': False, 'message': f'Order #{order_id} could not be found.'}
+
+            order = dict(order_row)
+
+            # Check if already cancelled
+            if order.get('order_status') == 'Cancelled':
+                conn.close()
+                return {'success': False, 'message': f"Order #{order['order_code']} has already been cancelled."}
+
+            # Check 12-hour cancellation rule
+            now = datetime.now()
+            created_dt = self._parse_order_datetime(order.get('created_at'))
+            elapsed = (now - created_dt).total_seconds()
+            twelve_hours_sec = 12 * 3600
+
+            if elapsed > twelve_hours_sec:
+                conn.close()
+                return {
+                    'success': False,
+                    'message': f"This order cannot be cancelled online because the 12-hour cancellation window has passed. Orders placed over 12 hours ago are already in dispatch preparation. Please contact Customer Support at tamimtahmid270@gmail.com."
+                }
+
+            # Begin ACID Transaction
+            cursor.execute("BEGIN TRANSACTION")
+
+            # 1. Restock items back into inventory
+            cursor.execute("SELECT book_id, quantity FROM order_items WHERE order_id = ?", (order_id,))
+            items = cursor.fetchall()
+            for it in items:
+                cursor.execute("""
+                    UPDATE books
+                    SET stock_qty = stock_qty + ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE book_id = ?
+                """, (it['quantity'], it['book_id']))
+                cursor.execute("""
+                    INSERT INTO book_audit_log (book_id, action, changed_by, old_stock, new_stock)
+                    VALUES (?, 'RESTOCK_CANCEL', 'CustomerCancel', NULL, NULL)
+                """, (it['book_id'],))
+
+            # 2. Compute Refund
+            payment_method = order.get('payment_method') or 'Cash on Delivery'
+            is_online_paid = payment_method in ['bKash', 'Nagad', 'Card'] or order.get('payment_status') in ['Completed', 'Paid']
+            total_amount = float(order.get('total_amount') or 0.0)
+            delivery_fee = float(order.get('delivery_fee') or 60.0)
+            subtotal = float(order.get('subtotal') or max(0.0, total_amount - delivery_fee))
+
+            if is_online_paid:
+                refund_amount = round(max(0.0, total_amount - delivery_fee), 2)
+                refund_status = 'Refund Initiated'
+                payment_status = 'Refund Initiated'
+                refund_msg = f"Your order #{order['order_code']} has been cancelled. As your payment was processed online via {payment_method}, a refund of ৳{refund_amount:.2f} has been initiated to your account (delivery preparation fee of ৳{delivery_fee:.2f} was deducted). The refund will be credited back within 3–5 business days."
+            else:
+                refund_amount = 0.0
+                refund_status = 'N/A (Cash on Delivery)'
+                payment_status = 'Cancelled'
+                refund_msg = f"Your order #{order['order_code']} has been cancelled successfully. Since this order was scheduled for Cash on Delivery, no payment was deducted and zero fees apply."
+
+            now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+            cancel_reason_clean = (cancel_reason or 'Customer requested cancellation').strip()
+
+            cursor.execute("""
+                UPDATE orders
+                SET order_status = 'Cancelled',
+                    cancelled_at = ?,
+                    cancel_reason = ?,
+                    refund_amount = ?,
+                    refund_status = ?,
+                    payment_status = ?
+                WHERE order_id = ?
+            """, (now_str, cancel_reason_clean, refund_amount, refund_status, payment_status, order_id))
+
+            conn.commit()
+            conn.close()
+
+            return {
+                'success': True,
+                'order_id': order_id,
+                'order_code': order['order_code'],
+                'customer_name': order['customer_name'],
+                'customer_email': order.get('customer_email') or '',
+                'customer_phone': order.get('customer_phone') or '',
+                'total_amount': total_amount,
+                'delivery_fee': delivery_fee,
+                'refund_amount': refund_amount,
+                'is_online_paid': is_online_paid,
+                'payment_method': payment_method,
+                'cancel_reason': cancel_reason_clean,
+                'cancelled_at': now_str,
+                'placed_at': order.get('created_at', ''),
+                'message': refund_msg
+            }
+        except Exception as e:
             conn.rollback()
             conn.close()
-            return {'success': False, 'message': str(e)}
+            return {'success': False, 'message': f"Cancellation failed: {str(e)}"}
 
     def get_admin_dashboard_data(self):
         """Returns comprehensive catalog stats, recent orders, inventory alerts, and full books catalog."""

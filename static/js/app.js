@@ -904,6 +904,11 @@ const App = {
           const amtEl = document.getElementById('success-total-amount');
           if (amtEl) amtEl.textContent = `৳${data.total_amount.toFixed(2)}`;
 
+          const placedAtEl = document.getElementById('success-placed-at');
+          if (placedAtEl) {
+            placedAtEl.textContent = data.created_at || (new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' at ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+          }
+
           const payEl = document.getElementById('success-payment-method');
           if (payEl) payEl.textContent = orderPayload.payment_method;
 
@@ -1915,6 +1920,373 @@ const App = {
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origBtnHtml;
+      }
+    }
+  },
+
+  userOrdersCache: [],
+  currentCancellingOrder: null,
+
+  openMyOrdersModal() {
+    const modal = document.getElementById('my-orders-modal');
+    if (!modal) return;
+    modal.classList.add('active');
+    this.loadUserOrders();
+  },
+
+  closeMyOrdersModal() {
+    const modal = document.getElementById('my-orders-modal');
+    if (modal) modal.classList.remove('active');
+  },
+
+  async loadUserOrders(customParams = {}) {
+    const container = document.getElementById('my-orders-list');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div style="text-align: center; padding: 36px 20px; color: var(--taupe-muted);">
+        <div style="font-size: 1.8rem; margin-bottom: 8px;">⏳</div>
+        <div>Loading your order history and cancellation status...</div>
+      </div>
+    `;
+
+    const user = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+    const params = new URLSearchParams();
+
+    if (customParams.order_code) {
+      params.set('order_code', customParams.order_code.trim());
+    } else if (user) {
+      if (user.user_id) params.set('user_id', user.user_id);
+      if (user.email) params.set('email', user.email);
+      if (user.full_name) params.set('name', user.full_name);
+    } else {
+      // Guest with no specific order searched
+      container.innerHTML = `
+        <div class="empty-state" style="padding: 32px 20px;">
+          <div class="empty-state-icon">📦</div>
+          <h3>Track Your Orders</h3>
+          <p>Please enter your <strong>Order Code</strong> (e.g. <code>PV-123456-789</code>) in the lookup bar above, or <a href="javascript:void(0)" onclick="App.closeMyOrdersModal(); Auth.showModal('login');" style="color: var(--burnt-orange); font-weight: 700;">Sign In</a> to view your full order history.</p>
+        </div>
+      `;
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/user/orders?${params.toString()}`);
+      const data = await res.json();
+      const orders = data.orders || [];
+      this.userOrdersCache = orders;
+      this.renderUserOrders(orders);
+    } catch (err) {
+      console.error('[Load Orders]', err);
+      container.innerHTML = `
+        <div class="empty-state" style="padding: 24px;">
+          <h3>Connection Error</h3>
+          <p>Could not load order history at this time. Please try refreshing.</p>
+          <button class="btn btn-secondary" onclick="App.refreshUserOrders()">Retry</button>
+        </div>
+      `;
+    }
+  },
+
+  renderUserOrders(orders) {
+    const container = document.getElementById('my-orders-list');
+    if (!container) return;
+
+    if (!orders || orders.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding: 36px 20px;">
+          <div class="empty-state-icon">📚</div>
+          <h3>No Orders Found</h3>
+          <p>You haven't placed any orders matching this criteria yet. Explore our curated collections to start building your library!</p>
+          <div style="margin-top: 14px;">
+            <button class="btn btn-primary" onclick="App.closeMyOrdersModal(); window.scrollTo({top: 0, behavior: 'smooth'});">
+              Explore Book Catalog &rarr;
+            </button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = orders.map(o => {
+      const isCancelled = o.is_cancelled || (o.order_status === 'Cancelled');
+      const statusClass = (o.order_status || 'confirmed').toLowerCase().replace(/\s+/g, '-');
+      const items = o.items || [];
+      const isOnline = o.is_online_paid;
+
+      // Status pill label
+      let statusLabel = o.order_status || 'Confirmed';
+      if (isCancelled) statusLabel = 'Cancelled';
+
+      // 12-hour cancellation footer section
+      let cancelSectionHtml = '';
+      if (isCancelled) {
+        cancelSectionHtml = `
+          <div style="width: 100%; background: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px; padding: 12px 14px; font-size: 0.82rem; color: #991B1B;">
+            <div style="font-weight: 700; display: flex; align-items: center; gap: 6px;">
+              <span>❌ Order Cancelled</span>
+              ${o.formatted_cancelled_at ? `<span style="font-weight: normal; color: #7F1D1D;">on ${escapeHtml(o.formatted_cancelled_at)}</span>` : ''}
+            </div>
+            ${o.cancel_reason ? `<div style="margin-top: 4px; color: #7F1D1D;">Reason: <em>${escapeHtml(o.cancel_reason)}</em></div>` : ''}
+            ${isOnline && o.refund_amount > 0 ? `
+              <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #FECACA; font-weight: 700; color: #065F46;">
+                💳 Refund of ৳${parseFloat(o.refund_amount).toFixed(2)} initiated to your ${escapeHtml(o.payment_method)} (৳${parseFloat(o.delivery_fee).toFixed(2)} delivery fee deducted). Processing in 3–5 business days.
+              </div>
+            ` : ''}
+          </div>
+        `;
+      } else if (o.can_cancel) {
+        cancelSectionHtml = `
+          <div class="cancel-timer-badge active">
+            <span>⏱️ Cancellation Eligible:</span>
+            <strong>${o.hours_left}h ${o.mins_left}m remaining</strong>
+          </div>
+          <button type="button" class="btn-cancel-order" onclick="App.promptCancelOrder(${o.order_id})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Cancel Order
+          </button>
+        `;
+      } else {
+        cancelSectionHtml = `
+          <div class="cancel-timer-badge expired" title="Orders older than 12 hours cannot be self-cancelled as they are in warehouse fulfillment.">
+            <span>🔒 Cancellation Window Closed (&gt;12h from order placement)</span>
+          </div>
+          <button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 5px 12px;" onclick="App.closeMyOrdersModal(); App.openQueryModal();">
+            Need Help? Contact Support
+          </button>
+        `;
+      }
+
+      return `
+        <div class="order-history-card">
+          <div class="order-history-header">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span class="order-code-badge">#${escapeHtml(o.order_code)}</span>
+              <button type="button" class="btn btn-text" style="font-size: 0.74rem; padding: 2px 6px;" onclick="navigator.clipboard.writeText('${escapeQuote(o.order_code)}'); showToast('Order code copied!', 'info');" title="Copy Order Code">Copy</button>
+            </div>
+            <span class="order-status-pill order-status-${statusClass}">${escapeHtml(statusLabel)}</span>
+          </div>
+
+          <div class="order-history-meta">
+            <div class="order-meta-item">
+              <label>📅 Date &amp; Time Placed</label>
+              <strong>${escapeHtml(o.formatted_created_at || o.created_at || 'Recently')}</strong>
+            </div>
+            <div class="order-meta-item">
+              <label>💳 Payment Method</label>
+              <strong>${escapeHtml(o.payment_method || 'Cash on Delivery')}</strong>
+              ${o.transaction_id ? `<span style="font-size: 0.7rem; color: var(--taupe-muted); display: block;">Trx: ${escapeHtml(o.transaction_id)}</span>` : ''}
+            </div>
+            <div class="order-meta-item">
+              <label>📍 Delivery Destination</label>
+              <strong>${escapeHtml(o.customer_name)}</strong>
+              <span style="font-size: 0.74rem; color: var(--taupe-muted); display: block;">${escapeHtml(o.district)} &bull; ${escapeHtml(o.customer_phone)}</span>
+            </div>
+            <div class="order-meta-item">
+              <label>💰 Total Amount</label>
+              <strong style="color: var(--burnt-orange); font-size: 0.95rem;">৳${parseFloat(o.total_amount).toFixed(2)}</strong>
+              <span style="font-size: 0.7rem; color: var(--taupe-muted); display: block;">(Subtotal ৳${parseFloat(o.subtotal).toFixed(2)} + Fee ৳${parseFloat(o.delivery_fee).toFixed(2)})</span>
+            </div>
+          </div>
+
+          <div class="order-history-items">
+            ${items.map(it => `
+              <div class="order-history-item-row">
+                <div class="order-item-left">
+                  <img class="order-item-thumb" src="${it.cover_image || '/static/img/book-placeholder.svg'}" alt="${escapeHtml(it.title || '')}" onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" />
+                  <div class="order-item-details">
+                    <div class="order-item-title">${escapeHtml(it.title || 'Book Title')}</div>
+                    <div class="order-item-qty">Quantity: ${it.quantity} &times; ৳${parseFloat(it.unit_price).toFixed(2)}</div>
+                  </div>
+                </div>
+                <div class="order-item-price">৳${parseFloat(it.total_price).toFixed(2)}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="order-history-footer">
+            ${cancelSectionHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  lookupSpecificOrder() {
+    const input = document.getElementById('order-lookup-input');
+    const code = (input?.value || '').trim();
+    if (!code) {
+      showToast('Please enter an Order Reference Code (e.g. PV-123456-789).', 'info');
+      return;
+    }
+    this.loadUserOrders({ order_code: code });
+  },
+
+  refreshUserOrders() {
+    const input = document.getElementById('order-lookup-input');
+    if (input) input.value = '';
+    this.loadUserOrders();
+  },
+
+  promptCancelOrder(orderId) {
+    const order = (this.userOrdersCache || []).find(o => o.order_id === orderId);
+    if (!order) {
+      showToast('Order details not found.', 'error');
+      return;
+    }
+
+    this.currentCancellingOrder = order;
+    const modal = document.getElementById('cancel-order-modal');
+    if (!modal) return;
+
+    const summaryBox = document.getElementById('cancel-order-summary-box');
+    const feedbackBox = document.getElementById('cancel-modal-feedback');
+    if (feedbackBox) feedbackBox.style.display = 'none';
+
+    const isOnline = order.is_online_paid;
+    const totalAmount = parseFloat(order.total_amount || 0.0);
+    const deliveryFee = parseFloat(order.delivery_fee || 60.0);
+    const refundAmount = parseFloat(order.refundable_amount || Math.max(0.0, totalAmount - deliveryFee));
+
+    if (summaryBox) {
+      summaryBox.innerHTML = `
+        <div style="background: #FAF7F2; border: 1px solid var(--cream-border); border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="font-size: 0.95rem; color: var(--ink-black);">Order Reference:</strong>
+            <span style="font-family: var(--font-mono); font-weight: 700; color: var(--burnt-orange);">#${escapeHtml(order.order_code)}</span>
+          </div>
+          <div style="font-size: 0.82rem; color: var(--ink-muted); margin-bottom: 8px;">
+            Placed on: <strong>${escapeHtml(order.formatted_created_at || order.created_at)}</strong>
+          </div>
+          <div style="font-size: 0.82rem; color: var(--ink-charcoal);">
+            Items: <strong>${(order.items || []).length} title(s)</strong> (${(order.items || []).map(i => escapeHtml(i.title)).join(', ')})
+          </div>
+        </div>
+
+        <div class="refund-breakdown-box">
+          <div style="font-weight: 700; color: var(--ink-black); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>${isOnline ? '💳 Online Payment Refund Breakdown' : 'ℹ️ Cash on Delivery Cancellation'}</span>
+          </div>
+          
+          <div class="refund-line">
+            <span>Total Order Value:</span>
+            <strong>৳${totalAmount.toFixed(2)}</strong>
+          </div>
+          <div class="refund-line">
+            <span>Payment Method:</span>
+            <strong>${escapeHtml(order.payment_method)}</strong>
+          </div>
+
+          ${isOnline ? `
+            <div class="refund-line" style="color: #991B1B;">
+              <span>Deducted Delivery Fee (Dispatch Preparation):</span>
+              <strong>-৳${deliveryFee.toFixed(2)}</strong>
+            </div>
+            <div class="refund-line total" style="color: #065F46;">
+              <span>Net Refundable Amount:</span>
+              <strong style="font-size: 1.05rem;">৳${refundAmount.toFixed(2)}</strong>
+            </div>
+            <div style="margin-top: 10px; font-size: 0.78rem; color: #78350F; background: #FEF3C7; padding: 8px 12px; border-radius: 6px; line-height: 1.4;">
+              <strong>Refund Policy:</strong> Since your payment was verified online, <strong>৳${refundAmount.toFixed(2)}</strong> will be automatically credited back to your original ${escapeHtml(order.payment_method)} account within <strong>3 to 5 business days</strong>. The delivery preparation fee (৳${deliveryFee.toFixed(2)}) is deducted per our 12-hour cancellation policy.
+            </div>
+          ` : `
+            <div class="refund-line total" style="color: #065F46;">
+              <span>Charges Incurred:</span>
+              <strong style="font-size: 1.05rem;">৳0.00</strong>
+            </div>
+            <div style="margin-top: 10px; font-size: 0.78rem; color: #065F46; background: #ECFDF5; padding: 8px 12px; border-radius: 6px; line-height: 1.4;">
+              As this order is scheduled for Cash on Delivery, no funds were deducted. Your order will be cancelled immediately at zero fee.
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    modal.classList.add('active');
+  },
+
+  closeCancelModal() {
+    const modal = document.getElementById('cancel-order-modal');
+    if (modal) modal.classList.remove('active');
+    this.currentCancellingOrder = null;
+  },
+
+  async executeOrderCancellation() {
+    if (!this.currentCancellingOrder) return;
+    const order = this.currentCancellingOrder;
+    const reasonSelect = document.getElementById('cancel-reason-select');
+    const notesInput = document.getElementById('cancel-reason-notes');
+    const feedbackBox = document.getElementById('cancel-modal-feedback');
+    const confirmBtn = document.getElementById('confirm-cancel-btn');
+
+    let fullReason = reasonSelect ? reasonSelect.value : 'Customer requested cancellation';
+    if (notesInput && notesInput.value.trim()) {
+      fullReason += ` (${notesInput.value.trim()})`;
+    }
+
+    const origBtnHtml = confirmBtn ? confirmBtn.innerHTML : '';
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = '<span>Processing Cancellation...</span>';
+    }
+
+    const user = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+
+    try {
+      const res = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: order.order_id,
+          user_id: user ? user.user_id : null,
+          email: user ? user.email : (order.customer_email || ''),
+          cancel_reason: fullReason
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`Order #${order.order_code} has been cancelled.`, 'success');
+        if (feedbackBox) {
+          feedbackBox.className = 'alert-success';
+          feedbackBox.style.background = '#ECFDF5';
+          feedbackBox.style.color = '#065F46';
+          feedbackBox.style.border = '1px solid #A7F3D0';
+          feedbackBox.style.display = 'block';
+          feedbackBox.innerHTML = `<strong>Order Cancelled!</strong> ${escapeHtml(data.message)}`;
+        }
+        setTimeout(() => {
+          this.closeCancelModal();
+          this.loadUserOrders();
+        }, 2200);
+      } else {
+        const errMsg = data.message || 'Could not cancel this order.';
+        if (feedbackBox) {
+          feedbackBox.className = 'alert-danger';
+          feedbackBox.style.background = '#FEE2E2';
+          feedbackBox.style.color = '#B91C1C';
+          feedbackBox.style.border = '1px solid #FCA5A5';
+          feedbackBox.style.display = 'block';
+          feedbackBox.textContent = errMsg;
+        }
+        showToast(errMsg, 'error');
+      }
+    } catch (err) {
+      console.error('[Cancel Order]', err);
+      showToast('Network error while cancelling order.', 'error');
+      if (feedbackBox) {
+        feedbackBox.className = 'alert-danger';
+        feedbackBox.style.background = '#FEE2E2';
+        feedbackBox.style.color = '#B91C1C';
+        feedbackBox.style.border = '1px solid #FCA5A5';
+        feedbackBox.style.display = 'block';
+        feedbackBox.textContent = 'Network communication error. Please try again.';
+      }
+    } finally {
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = origBtnHtml;
       }
     }
   }
