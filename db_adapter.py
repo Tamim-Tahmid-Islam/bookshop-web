@@ -215,6 +215,15 @@ class DatabaseAdapter:
         except Exception:
             pass
 
+        # Ensure realistic low-stock distribution (strictly <= 20)
+        try:
+            cursor.execute("UPDATE books SET stock_qty = 8 WHERE book_id = 12 AND stock_qty > 20")
+            cursor.execute("UPDATE books SET stock_qty = 14 WHERE book_id = 11 AND stock_qty > 20")
+            cursor.execute("UPDATE books SET stock_qty = 18 WHERE book_id = 10 AND stock_qty > 20")
+            cursor.execute("UPDATE books SET stock_qty = 45 WHERE book_id = 5 AND stock_qty = 24")
+        except Exception:
+            pass
+
         # Check if seed data exists
         cursor.execute("SELECT COUNT(*) AS cnt FROM books")
         if cursor.fetchone()['cnt'] == 0:
@@ -299,8 +308,8 @@ class DatabaseAdapter:
             (1, '978-0078022159', 'Database System Concepts', 'Seventh Edition', 4, 1, 1250.00, 10.0, 42, 2019, 1376, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1348180424i/18579.jpg', 'The benchmark textbook providing comprehensive coverage of database management concepts, relational models, SQL query processing, index architectures, concurrency control, and ACID transactions.'),
             (2, '978-1449373320', 'Designing Data-Intensive Applications', 'The Big Ideas Behind Reliable Systems', 2, 1, 950.00, 15.0, 75, 2017, 616, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1453982827i/23463279.jpg', 'Key insights into database storage engines, B-trees, LSM-trees, replication, partitioning, distributed transactions, and stream processing.'),
             (3, '978-0134494166', 'Clean Architecture', 'A Craftsman''s Guide to Software Structure', 1, 2, 650.00, 5.0, 58, 2017, 432, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1495947702i/18043011.jpg', 'Essential architectural rules for creating clean software systems with decoupled database layers, business domain boundaries, and testable frameworks.'),
-            (4, '978-0262033848', 'Introduction to Algorithms (CLRS)', 'Fourth Edition', 3, 2, 1450.00, 12.0, 31, 2022, 1312, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1387741681i/108986.jpg', 'The standard worldwide guide to algorithms: dynamic programming, graph traversal, greedy heuristics, B-trees, sorting algorithms, and complexity analysis.'),
-            (5, '978-0134610993', 'Artificial Intelligence: A Modern Approach', 'Fourth Edition', 1, 9, 1600.00, 8.0, 24, 2020, 1168, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1347649539i/72005.jpg', 'The most authoritative introduction to artificial intelligence, covering rational agents, probabilistic reasoning, reinforcement learning, and neural architectures.'),
+            (4, '978-0262033848', 'Introduction to Algorithms (CLRS)', 'Fourth Edition', 3, 2, 1450.00, 12.0, 40, 2022, 1312, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1387741681i/108986.jpg', 'The standard worldwide guide to algorithms: dynamic programming, graph traversal, greedy heuristics, B-trees, sorting algorithms, and complexity analysis.'),
+            (5, '978-0134610993', 'Artificial Intelligence: A Modern Approach', 'Fourth Edition', 1, 9, 1600.00, 8.0, 45, 2020, 1168, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1347649539i/72005.jpg', 'The most authoritative introduction to artificial intelligence, covering rational agents, probabilistic reasoning, reinforcement learning, and neural architectures.'),
 
             # 6-8: Sci-Fi & Dystopia
             (6, '978-0441013593', 'Dune', 'The Epic Science Fiction Masterpiece', 5, 7, 550.00, 20.0, 110, 1965, 896, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1555447414i/44767458.jpg', 'Set on the desert planet Arrakis, Dune is the story of the boy Paul Atreides, who inherits a vast planetary destiny amidst geopolitical and ecological conflict.'),
@@ -309,9 +318,9 @@ class DatabaseAdapter:
 
             # 9-12: Software Design & Additional DB Theory
             (9, '978-0201633610', 'Design Patterns: Elements of Reusable Software', 'Classic Gang of Four', 1, 2, 750.00, 15.0, 39, 1994, 416, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1348027904i/85009.jpg', 'The canonical catalog of 23 classic software design patterns categorized into Creational, Structural, and Behavioral solutions.'),
-            (10, '978-0321127426', 'Patterns of Enterprise Application Architecture', 'Data Mapping and Domain Models', 1, 2, 850.00, 5.0, 29, 2002, 560, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1440319405i/70156.jpg', 'Detailed patterns for mapping object-oriented models to relational database tables, managing transactions, unit of work, and domain logic layers.'),
-            (11, '978-0321392794', 'An Introduction to Database Systems', 'Eighth Edition', 1, 1, 1100.00, 10.0, 18, 2003, 1024, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1388188169i/66826.jpg', 'The foundational theoretical text on the relational model, relational algebra, tuple calculus, normalization theory, and integrity constraints by C.J. Date.'),
-            (12, '978-0321751041', 'The Art of Computer Programming, Vol 1', 'Fundamental Algorithms', 1, 2, 1350.00, 0.0, 15, 1997, 672, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1348630043i/112239.jpg', 'Knuth''s monumental multi-volume work providing exact mathematical analyses of algorithm structures and memory representations.'),
+            (10, '978-0321127426', 'Patterns of Enterprise Application Architecture', 'Data Mapping and Domain Models', 1, 2, 850.00, 5.0, 18, 2002, 560, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1440319405i/70156.jpg', 'Detailed patterns for mapping object-oriented models to relational database tables, managing transactions, unit of work, and domain logic layers.'),
+            (11, '978-0321392794', 'An Introduction to Database Systems', 'Eighth Edition', 1, 1, 1100.00, 10.0, 14, 2003, 1024, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1388188169i/66826.jpg', 'The foundational theoretical text on the relational model, relational algebra, tuple calculus, normalization theory, and integrity constraints by C.J. Date.'),
+            (12, '978-0321751041', 'The Art of Computer Programming, Vol 1', 'Fundamental Algorithms', 1, 2, 1350.00, 0.0, 8, 1997, 672, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1348630043i/112239.jpg', 'Knuth''s monumental multi-volume work providing exact mathematical analyses of algorithm structures and memory representations.'),
 
             # 13-16: Harry Potter Series by J.K. Rowling
             (13, '978-0590353427', 'Harry Potter and the Sorcerer''s Stone', 'Book 1 of the Hogwarts Series', 9, 3, 620.00, 10.0, 95, 1997, 309, 'English', 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1474154022i/3.jpg', 'Harry Potter has never even heard of Hogwarts when letters start dropping on the doormat. On his eleventh birthday, he discovers he is a wizard destined for an extraordinary magical world.'),
@@ -1103,8 +1112,8 @@ class DatabaseAdapter:
         cursor.execute("SELECT COUNT(*) AS total_cats FROM categories")
         total_categories = cursor.fetchone()['total_cats']
 
-        # 3. Inventory Alerts (Low Stock <= 25)
-        cursor.execute("SELECT COUNT(*) AS low_stock_count FROM books WHERE is_deleted = 0 AND stock_qty <= 25")
+        # 3. Inventory Alerts (Strictly Low Stock <= 20 threshold)
+        cursor.execute("SELECT COUNT(*) AS low_stock_count FROM books WHERE is_deleted = 0 AND stock_qty <= 20")
         low_stock_count = cursor.fetchone()['low_stock_count']
 
         # 4. Total Orders & Revenue
@@ -1124,14 +1133,18 @@ class DatabaseAdapter:
         """)
         recent_orders = [dict(r) for r in cursor.fetchall()]
 
-        # 6. Low stock items
+        # 6. Low stock items (Strictly <= 20 units; ignore items > 20)
         cursor.execute("""
-            SELECT b.book_id, b.title, b.stock_qty, b.price, b.cover_image, c.name AS category_name
+            SELECT b.book_id, b.isbn, b.title, b.stock_qty, b.price, b.cover_image, c.name AS category_name,
+                   COALESCE(GROUP_CONCAT(DISTINCT a.name), 'Unknown') AS authors
             FROM books b
             INNER JOIN categories c ON b.category_id = c.category_id
-            WHERE b.is_deleted = 0 AND b.stock_qty <= 25
+            LEFT JOIN book_authors ba ON b.book_id = ba.book_id
+            LEFT JOIN authors a ON ba.author_id = a.author_id
+            WHERE b.is_deleted = 0 AND b.stock_qty <= 20
+            GROUP BY b.book_id
             ORDER BY b.stock_qty ASC
-            LIMIT 8
+            LIMIT 15
         """)
         low_stock_items = [dict(r) for r in cursor.fetchall()]
 

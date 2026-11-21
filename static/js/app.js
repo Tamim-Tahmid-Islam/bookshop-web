@@ -1092,16 +1092,19 @@ const App = {
       if (el) el.textContent = val;
     };
 
+    // Strictly filter low stock items (<= 20 units; ignore books > 20)
+    const strictlyLowItems = (data.low_stock_items || []).filter(b => Number(b.stock_qty) <= 20);
+
     setVal('metric-total-books', m.total_books || 0);
     setVal('metric-total-categories', m.total_categories || 0);
-    setVal('metric-low-stock', m.low_stock_count || 0);
+    setVal('metric-low-stock', strictlyLowItems.length);
     setVal('metric-total-orders', m.total_orders || 0);
     setVal('metric-total-revenue', `৳${parseFloat(m.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 
     // Tab badges
     setVal('admin-tab-book-count', (data.books || []).length);
     setVal('admin-tab-order-count', (data.recent_orders || []).length);
-    setVal('admin-tab-lowstock-count', (data.low_stock_items || []).length);
+    setVal('admin-tab-lowstock-count', strictlyLowItems.length);
 
     // Populate category dropdown in admin toolbar if empty
     const catSelect = document.getElementById('admin-books-category-select');
@@ -1113,10 +1116,10 @@ const App = {
       catSelect.innerHTML = optHtml;
     }
 
-    // Snapshot: Overview Low Stock Table (Urgent)
+    // Snapshot: Overview Low Stock Table (Urgent Stock <= 20)
     const ovStockTbody = document.getElementById('overview-lowstock-tbody');
     if (ovStockTbody) {
-      const lowItems = data.low_stock_items || [];
+      const lowItems = strictlyLowItems;
       if (lowItems.length === 0) {
         ovStockTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #10B981; padding: 16px;">✓ All inventory levels healthy (&gt; 20 units)</td></tr>';
       } else {
@@ -1222,23 +1225,23 @@ const App = {
       }
     }
 
-    // Panel 4: Full Low Stock Table
+    // Panel 4: Full Low Stock Table (Strictly <= 20 threshold)
     const stockTbody = document.getElementById('admin-stock-tbody');
     if (stockTbody) {
-      const lowItems = data.low_stock_items || [];
+      const lowItems = (data.low_stock_items || []).filter(b => Number(b.stock_qty) <= 20);
       if (lowItems.length === 0) {
-        stockTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #10B981; padding: 24px;">✓ Inventory is fully stocked across all catalog items!</td></tr>';
+        stockTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #10B981; padding: 24px;">✓ Inventory is fully stocked across all catalog items (&gt; 20 units)!</td></tr>';
       } else {
         stockTbody.innerHTML = lowItems.map(b => `
           <tr>
             <td><img src="${b.cover_image || ''}" class="admin-thumb" onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" /></td>
             <td>
               <strong>${escapeHtml(b.title)}</strong>
-              <div style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(b.authors || 'Unknown')} &bull; ISBN: ${escapeHtml(b.isbn)}</div>
+              <div style="font-size: 0.76rem; color: var(--ink-faint);">${escapeHtml(b.authors || b.author_names || 'Unknown')} &bull; ISBN: ${escapeHtml(b.isbn || 'N/A')}</div>
             </td>
             <td><span class="book-category-tag">${escapeHtml(b.category_name)}</span></td>
             <td><strong style="color: var(--danger); font-family: var(--font-mono); font-size: 0.95rem;">${b.stock_qty}</strong> units</td>
-            <td><span class="status-badge status-low">Restock Recommended</span></td>
+            <td><span class="status-badge status-low">Stock &le; 20</span></td>
             <td>
               <button class="btn-table-action btn-restock" onclick="App.quickRestock(${b.book_id}, '${escapeQuote(b.title)}', ${b.stock_qty})">+ Restock</button>
             </td>
