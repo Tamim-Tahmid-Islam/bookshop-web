@@ -158,7 +158,7 @@
         <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu">&times;</button>
       </div>
       <!-- Section: Most Popular Books (Based on Database Order History) -->
-      <div class="filter-section popular-feature-section">
+      <div class="filter-section popular-feature-section" style="padding-bottom: 4px;">
         <button type="button" 
                 id="popular-books-btn" 
                 class="popular-filter-card" 
@@ -175,6 +175,58 @@
               <span class="popular-live-badge">Top Sellers</span>
             </div>
             <p class="popular-card-sub">In-stock titles ranked by database order history</p>
+          </div>
+          <div class="popular-card-toggle-indicator">
+            <span class="popular-check-icon">&#10003;</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Section: Recently Viewed Books -->
+      <div class="filter-section popular-feature-section" style="padding-top: 4px; padding-bottom: 4px;">
+        <button type="button" 
+                id="recently-viewed-btn" 
+                class="popular-filter-card recently-viewed-card" 
+                onclick="SearchEngine.toggleRecentlyViewedFilter()" 
+                title="View books you have recently opened or inspected">
+          <div class="popular-card-icon-box" style="background: rgba(37, 99, 235, 0.1); color: #2563EB;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="popular-card-content">
+            <div class="popular-card-headline">
+              <span class="popular-card-title">Recently Viewed</span>
+              <span class="popular-live-badge" id="recently-viewed-badge" style="background: rgba(37, 99, 235, 0.12); color: #1D4ED8;">History</span>
+            </div>
+            <p class="popular-card-sub">Books you have explored during your session</p>
+          </div>
+          <div class="popular-card-toggle-indicator">
+            <span class="popular-check-icon">&#10003;</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Section: Out of Stock Books -->
+      <div class="filter-section popular-feature-section" style="padding-top: 4px; padding-bottom: 8px;">
+        <button type="button" 
+                id="out-of-stock-btn" 
+                class="popular-filter-card out-of-stock-card" 
+                onclick="SearchEngine.toggleOutOfStockFilter()" 
+                title="View catalog titles currently sold out or awaiting restock">
+          <div class="popular-card-icon-box" style="background: rgba(220, 38, 38, 0.1); color: #DC2626;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+          </div>
+          <div class="popular-card-content">
+            <div class="popular-card-headline">
+              <span class="popular-card-title">Out of Stock Books</span>
+              <span class="popular-live-badge" style="background: rgba(220, 38, 38, 0.12); color: #B91C1C;">Sold Out</span>
+            </div>
+            <p class="popular-card-sub">Titles currently awaiting restock</p>
           </div>
           <div class="popular-card-toggle-indicator">
             <span class="popular-check-icon">&#10003;</span>
@@ -672,27 +724,7 @@
               </div>
             </div>
 
-            <!-- Live Security & Verification Codes Box -->
-            <div class="admin-snapshot-box" style="grid-column: 1 / -1; margin-top: 8px;">
-              <div class="snapshot-header">
-                <h4>🔐 Active Password Reset Verification Codes (Live Database)</h4>
-              </div>
-              <div class="snapshot-table-wrapper">
-                <table class="admin-data-table">
-                  <thead>
-                    <tr>
-                      <th>User Account</th>
-                      <th>Registered Email</th>
-                      <th>Active 6-Digit Code</th>
-                      <th>Expires At</th>
-                    </tr>
-                  </thead>
-                  <tbody id="overview-resets-tbody">
-                    <!-- Dynamic -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
+
 
             <!-- Customer Inquiries & Support Queries Box -->
             <div class="admin-snapshot-box" style="grid-column: 1 / -1; margin-top: 8px;">

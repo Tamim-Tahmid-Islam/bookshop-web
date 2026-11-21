@@ -375,13 +375,33 @@ class DatabaseAdapter:
             except ValueError:
                 pass
 
+        out_of_stock = filters.get('out_of_stock')
+        if out_of_stock in [True, 'true', '1', 1]:
+            where_clauses.append("b.stock_qty <= 0")
+
         in_stock = filters.get('in_stock')
-        if in_stock in [True, 'true', '1', 1]:
+        if in_stock in [True, 'true', '1', 1] and out_of_stock not in [True, 'true', '1', 1]:
             where_clauses.append("b.stock_qty > 0")
 
         popular = filters.get('popular')
-        if popular in [True, 'true', '1', 1]:
+        if popular in [True, 'true', '1', 1] and out_of_stock not in [True, 'true', '1', 1]:
             where_clauses.append("b.stock_qty > 0")
+
+        recently_viewed = filters.get('recently_viewed')
+        if recently_viewed in [True, 'true', '1', 1]:
+            recently_viewed_ids = filters.get('recently_viewed_ids')
+            if isinstance(recently_viewed_ids, str):
+                id_list = [int(x.strip()) for x in recently_viewed_ids.split(',') if x.strip().isdigit()]
+            elif isinstance(recently_viewed_ids, list):
+                id_list = [int(x) for x in recently_viewed_ids if str(x).isdigit()]
+            else:
+                id_list = []
+            if id_list:
+                ph = ','.join(['?'] * len(id_list))
+                where_clauses.append(f"b.book_id IN ({ph})")
+                sql_params.extend(id_list)
+            else:
+                where_clauses.append("1 = 0")
 
         year_min = filters.get('year_min')
         if year_min and str(year_min).isdigit():
@@ -499,13 +519,36 @@ class DatabaseAdapter:
             sql_params.append(int(year_max))
             algebra_selections.append(f"year <= {year_max}")
 
-        if in_stock in [True, 'true', '1', 1]:
+        out_of_stock = params.get('out_of_stock')
+        if out_of_stock in [True, 'true', '1', 1]:
+            where_clauses.append("b.stock_qty <= 0")
+            algebra_selections.append("stock_qty <= 0 (out of stock)")
+
+        if in_stock in [True, 'true', '1', 1] and out_of_stock not in [True, 'true', '1', 1]:
             where_clauses.append("b.stock_qty > 0")
             algebra_selections.append("stock_qty > 0")
 
+        recently_viewed = params.get('recently_viewed')
+        if recently_viewed in [True, 'true', '1', 1]:
+            recently_viewed_ids = params.get('recently_viewed_ids')
+            if isinstance(recently_viewed_ids, str):
+                id_list = [int(x.strip()) for x in recently_viewed_ids.split(',') if x.strip().isdigit()]
+            elif isinstance(recently_viewed_ids, list):
+                id_list = [int(x) for x in recently_viewed_ids if str(x).isdigit()]
+            else:
+                id_list = []
+            if id_list:
+                placeholders = ','.join(['?'] * len(id_list))
+                where_clauses.append(f"b.book_id IN ({placeholders})")
+                sql_params.extend(id_list)
+                algebra_selections.append(f"book_id IN ({len(id_list)} recently viewed)")
+            else:
+                where_clauses.append("1 = 0")
+                algebra_selections.append("no recently viewed books")
+
         popular = params.get('popular')
         is_popular_mode = popular in [True, 'true', '1', 1] or sort_by == 'popular'
-        if is_popular_mode:
+        if is_popular_mode and out_of_stock not in [True, 'true', '1', 1]:
             where_clauses.append("b.stock_qty > 0")
             algebra_selections.append("stock_qty > 0 (available titles)")
 
@@ -666,6 +709,56 @@ class DatabaseAdapter:
         """
         cursor.execute(rev_sql, (book_id,))
         book_data['reviews'] = [dict(r) for r in cursor.fetchall()]
+
+        # Fetch related books in the same domain/category (excluding current book)
+        cat_id = book_data.get('category_id')
+        related = []
+        if cat_id:
+            rel_sql = """
+            SELECT 
+                b.book_id, b.title, b.price, b.discount_pct, b.stock_qty, b.cover_image, b.publication_year,
+                c.name AS category_name,
+                GROUP_CONCAT(DISTINCT a.name) AS author_names,
+                ROUND(COALESCE(AVG(r.rating), 0), 1) AS avg_rating,
+                ROUND(b.price * (1.0 - (b.discount_pct / 100.0)), 2) AS effective_price
+            FROM books b
+            LEFT JOIN categories c ON b.category_id = c.category_id
+            LEFT JOIN book_authors ba ON b.book_id = ba.book_id
+            LEFT JOIN authors a ON ba.author_id = a.author_id
+            LEFT JOIN reviews r ON b.book_id = r.book_id
+            WHERE b.category_id = ? AND b.book_id != ? AND b.is_deleted = 0
+            GROUP BY b.book_id
+            ORDER BY b.stock_qty DESC, avg_rating DESC, b.book_id ASC
+            LIMIT 6
+            """
+            cursor.execute(rel_sql, (cat_id, book_id))
+            related = [dict(r) for r in cursor.fetchall()]
+
+        # Fallback if fewer than 4 books in same domain: supplement with adjacent top-rated books
+        if len(related) < 4:
+            exclude_ids = [book_id] + [rb['book_id'] for rb in related]
+            ph = ','.join(['?'] * len(exclude_ids))
+            fallback_sql = f"""
+            SELECT 
+                b.book_id, b.title, b.price, b.discount_pct, b.stock_qty, b.cover_image, b.publication_year,
+                c.name AS category_name,
+                GROUP_CONCAT(DISTINCT a.name) AS author_names,
+                ROUND(COALESCE(AVG(r.rating), 0), 1) AS avg_rating,
+                ROUND(b.price * (1.0 - (b.discount_pct / 100.0)), 2) AS effective_price
+            FROM books b
+            LEFT JOIN categories c ON b.category_id = c.category_id
+            LEFT JOIN book_authors ba ON b.book_id = ba.book_id
+            LEFT JOIN authors a ON ba.author_id = a.author_id
+            LEFT JOIN reviews r ON b.book_id = r.book_id
+            WHERE b.book_id NOT IN ({ph}) AND b.is_deleted = 0
+            GROUP BY b.book_id
+            ORDER BY avg_rating DESC, b.book_id ASC
+            LIMIT {6 - len(related)}
+            """
+            cursor.execute(fallback_sql, exclude_ids)
+            related.extend([dict(r) for r in cursor.fetchall()])
+
+        book_data['related_books'] = related
 
         conn.close()
         return book_data

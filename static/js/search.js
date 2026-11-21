@@ -17,6 +17,8 @@ const SearchEngine = {
     in_stock: false,
     on_sale: false,
     popular: false,
+    recently_viewed: false,
+    out_of_stock: false,
     sort: 'relevance',
     page: 1,
     page_size: 12
@@ -137,6 +139,11 @@ const SearchEngine = {
     if (stockToggle) {
       stockToggle.addEventListener('change', (e) => {
         this.state.in_stock = e.target.checked;
+        if (this.state.in_stock && this.state.out_of_stock) {
+          this.state.out_of_stock = false;
+          const oosBtn = document.getElementById('out-of-stock-btn');
+          if (oosBtn) oosBtn.classList.remove('active');
+        }
         this.state.page = 1;
         this.executeSearch();
       });
@@ -260,6 +267,12 @@ const SearchEngine = {
           if (this.state.max_price) suggParams.set('max_price', this.state.max_price);
           if (this.state.in_stock) suggParams.set('in_stock', '1');
           if (this.state.popular) suggParams.set('popular', '1');
+          if (this.state.out_of_stock) suggParams.set('out_of_stock', '1');
+          if (this.state.recently_viewed) {
+            suggParams.set('recently_viewed', '1');
+            const viewedIds = (typeof App !== 'undefined' && App.getRecentlyViewed) ? App.getRecentlyViewed() : [];
+            suggParams.set('recently_viewed_ids', viewedIds.length > 0 ? viewedIds.join(',') : '0');
+          }
           if (this.state.year_min) suggParams.set('year_min', this.state.year_min);
           if (this.state.year_max) suggParams.set('year_max', this.state.year_max);
           if (this.state.on_sale) suggParams.set('on_sale', '1');
@@ -355,6 +368,13 @@ const SearchEngine = {
       if (stockToggle) stockToggle.checked = true;
       if (sortSelect) sortSelect.value = 'popular';
       this.state.sort = 'popular';
+
+      // Turn off out_of_stock if active
+      if (this.state.out_of_stock) {
+        this.state.out_of_stock = false;
+        const oosBtn = document.getElementById('out-of-stock-btn');
+        if (oosBtn) oosBtn.classList.remove('active');
+      }
     } else {
       if (sortSelect && sortSelect.value === 'popular') {
         sortSelect.value = 'relevance';
@@ -365,6 +385,58 @@ const SearchEngine = {
     this.executeSearch();
 
     // Auto-dismiss sidebar on phone so the user immediately sees the popular titles
+    if (window.innerWidth <= 900 && typeof App !== 'undefined' && App.closeMobileSidebar) {
+      App.closeMobileSidebar();
+    }
+  },
+
+  toggleRecentlyViewedFilter() {
+    this.state.recently_viewed = !this.state.recently_viewed;
+    this.state.page = 1;
+
+    const card = document.getElementById('recently-viewed-btn');
+    if (card) {
+      card.classList.toggle('active', this.state.recently_viewed);
+    }
+
+    this.executeSearch();
+
+    // Auto-dismiss sidebar on phone
+    if (window.innerWidth <= 900 && typeof App !== 'undefined' && App.closeMobileSidebar) {
+      App.closeMobileSidebar();
+    }
+  },
+
+  toggleOutOfStockFilter() {
+    this.state.out_of_stock = !this.state.out_of_stock;
+    this.state.page = 1;
+
+    const card = document.getElementById('out-of-stock-btn');
+    if (card) {
+      card.classList.toggle('active', this.state.out_of_stock);
+    }
+
+    if (this.state.out_of_stock) {
+      // Disengage in_stock and popular because out-of-stock requires stock_qty <= 0
+      this.state.in_stock = false;
+      const stockToggle = document.getElementById('stock-only-toggle');
+      if (stockToggle) stockToggle.checked = false;
+
+      if (this.state.popular) {
+        this.state.popular = false;
+        const popBtn = document.getElementById('popular-books-btn');
+        if (popBtn) popBtn.classList.remove('active');
+        const sortSelect = document.getElementById('sort-select');
+        if (sortSelect && sortSelect.value === 'popular') {
+          sortSelect.value = 'relevance';
+          this.state.sort = 'relevance';
+        }
+      }
+    }
+
+    this.executeSearch();
+
+    // Auto-dismiss sidebar on phone
     if (window.innerWidth <= 900 && typeof App !== 'undefined' && App.closeMobileSidebar) {
       App.closeMobileSidebar();
     }
@@ -383,11 +455,17 @@ const SearchEngine = {
     this.state.in_stock = false;
     this.state.on_sale = false;
     this.state.popular = false;
+    this.state.recently_viewed = false;
+    this.state.out_of_stock = false;
     this.state.sort = 'relevance';
     this.state.page = 1;
 
     const popBtn = document.getElementById('popular-books-btn');
     if (popBtn) popBtn.classList.remove('active');
+    const rvBtn = document.getElementById('recently-viewed-btn');
+    if (rvBtn) rvBtn.classList.remove('active');
+    const oosBtn = document.getElementById('out-of-stock-btn');
+    if (oosBtn) oosBtn.classList.remove('active');
 
     const sInput = document.getElementById('search-input');
     if (sInput) sInput.value = '';
@@ -459,6 +537,12 @@ const SearchEngine = {
       if (toggle) toggle.checked = false;
     } else if (type === 'popular') {
       this.togglePopularFilter();
+      return;
+    } else if (type === 'recently_viewed') {
+      this.toggleRecentlyViewedFilter();
+      return;
+    } else if (type === 'out_of_stock') {
+      this.toggleOutOfStockFilter();
       return;
     }
 
@@ -553,6 +637,20 @@ const SearchEngine = {
       });
     }
 
+    if (this.state.recently_viewed) {
+      chips.push({
+        type: 'recently_viewed',
+        html: `🕒 <strong>Recently Viewed Books</strong>`
+      });
+    }
+
+    if (this.state.out_of_stock) {
+      chips.push({
+        type: 'out_of_stock',
+        html: `📦 <strong>Out of Stock Titles</strong>`
+      });
+    }
+
     if (chips.length > 0) {
       container.innerHTML = chips.map(chip => `
         <span class="active-filter-chip">
@@ -585,6 +683,12 @@ const SearchEngine = {
     if (this.state.in_stock) params.set('in_stock', 'true');
     if (this.state.on_sale) params.set('on_sale', 'true');
     if (this.state.popular) params.set('popular', 'true');
+    if (this.state.out_of_stock) params.set('out_of_stock', 'true');
+    if (this.state.recently_viewed) {
+      params.set('recently_viewed', 'true');
+      const viewedIds = (typeof App !== 'undefined' && App.getRecentlyViewed) ? App.getRecentlyViewed() : [];
+      params.set('recently_viewed_ids', viewedIds.length > 0 ? viewedIds.join(',') : '0');
+    }
     if (this.state.sort) params.set('sort', this.state.sort);
     params.set('page', this.state.page);
     params.set('page_size', this.state.page_size);
@@ -612,11 +716,22 @@ const SearchEngine = {
 
     if (!books || books.length === 0) {
       const queryTerm = (this.state.q || '').trim();
+      let emptyTitle = 'No Books Found Matching Your Search Criteria';
+      let emptyMsg = `We couldn't find any titles matching ${queryTerm ? `&ldquo;<strong>${escapeHtml(queryTerm)}</strong>&rdquo;` : 'your query'} under the current filter selection.`;
+
+      if (this.state.recently_viewed && !queryTerm) {
+        emptyTitle = 'No Recently Viewed Books Yet';
+        emptyMsg = 'You haven\'t opened any book details during this session yet. Click on any book card to inspect its details and view recommendations!';
+      } else if (this.state.out_of_stock && !queryTerm) {
+        emptyTitle = 'All Catalog Titles Currently In Stock';
+        emptyMsg = 'Great news! There are currently no sold-out books matching your current filter selection.';
+      }
+
       grid.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
           <div class="empty-state-icon">📚</div>
-          <h3>No Books Found Matching Your Search Criteria</h3>
-          <p>We couldn't find any titles matching ${queryTerm ? `&ldquo;<strong>${escapeHtml(queryTerm)}</strong>&rdquo;` : 'your query'} under the current filter selection.</p>
+          <h3>${emptyTitle}</h3>
+          <p>${emptyMsg}</p>
           <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 18px;">
             <button class="auth-btn auth-btn-primary" onclick="SearchEngine.resetFilters()">Clear Filters</button>
             <button class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px;" onclick="App.openRequestBookModal(${escapeQuote(queryTerm) ? `'${escapeQuote(queryTerm)}'` : "''"})">
@@ -624,6 +739,15 @@ const SearchEngine = {
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                 <line x1="12" y1="8" x2="12" y2="14"></line>
+                <line x1="9" y1="11" x2="15" y2="11"></line>
+              </svg>
+              <span>Request This Book</span>
+            </button>
+          </div>
+        </div>
+      `;
+      return;
+    }
                 <line x1="9" y1="11" x2="15" y2="11"></line>
               </svg>
               <span>Request This Book</span>

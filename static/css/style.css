@@ -577,6 +577,105 @@ body {
   color: var(--burnt-orange);
 }
 
+/* Recently Viewed Card */
+.recently-viewed-card {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(243, 238, 227, 0.65) 100%);
+  border-color: rgba(37, 99, 235, 0.32);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.07);
+}
+
+.recently-viewed-card:hover {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(243, 238, 227, 0.95) 100%);
+  border-color: #2563EB;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.16);
+}
+
+.recently-viewed-card.active {
+  background: #2563EB;
+  border-color: #1D4ED8;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+}
+
+.recently-viewed-card.active .popular-check-icon {
+  color: #2563EB;
+}
+
+/* Out of Stock Card */
+.out-of-stock-card {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(243, 238, 227, 0.65) 100%);
+  border-color: rgba(220, 38, 38, 0.32);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.07);
+}
+
+.out-of-stock-card:hover {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(243, 238, 227, 0.95) 100%);
+  border-color: #DC2626;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.16);
+}
+
+.out-of-stock-card.active {
+  background: #DC2626;
+  border-color: #B91C1C;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.35);
+}
+
+.out-of-stock-card.active .popular-check-icon {
+  color: #DC2626;
+}
+
+/* Related Books Section in Modal */
+.related-books-section {
+  margin-top: 28px;
+  border-top: 1px solid var(--cream-border);
+  padding-top: 22px;
+}
+
+.related-books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.related-book-card {
+  cursor: pointer;
+  background: #FAF7F2;
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius-sm, 8px);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.22s ease;
+  user-select: none;
+}
+
+.related-book-card:hover {
+  border-color: var(--burnt-orange);
+  background: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+
+.related-book-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #E2DAD0;
+}
+
+.related-book-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.related-book-card:hover .related-book-img {
+  transform: scale(1.04);
+}
+
 .filter-section {
   display: flex;
   flex-direction: column;

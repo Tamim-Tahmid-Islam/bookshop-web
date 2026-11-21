@@ -420,6 +420,49 @@ const App = {
     SearchEngine.init();
     this.updateCartBadge();
     this.updateWishlistBadge();
+    this.updateRecentlyViewedBadge();
+  },
+
+  getRecentlyViewed() {
+    try {
+      const stored = localStorage.getItem('pagevault_recently_viewed');
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr)) {
+          return arr.map(x => parseInt(x)).filter(x => !isNaN(x) && x > 0);
+        }
+      }
+    } catch (e) {
+      // Ignore error
+    }
+    return [];
+  },
+
+  trackRecentlyViewed(bookId) {
+    if (!bookId) return;
+    try {
+      const id = parseInt(bookId);
+      if (isNaN(id) || id <= 0) return;
+      let list = this.getRecentlyViewed();
+      list = list.filter(item => item !== id);
+      list.unshift(id);
+      if (list.length > 30) list = list.slice(0, 30);
+      localStorage.setItem('pagevault_recently_viewed', JSON.stringify(list));
+      this.updateRecentlyViewedBadge();
+    } catch (e) {
+      // Ignore error
+    }
+  },
+
+  updateRecentlyViewedBadge() {
+    const badge = document.getElementById('recently-viewed-badge');
+    if (!badge) return;
+    const count = this.getRecentlyViewed().length;
+    if (count > 0) {
+      badge.textContent = `${count} viewed`;
+    } else {
+      badge.textContent = 'History';
+    }
   },
 
   loadState() {
@@ -1049,6 +1092,8 @@ const App = {
     const container = document.getElementById('book-detail-body');
     if (!modal || !container) return;
 
+    this.trackRecentlyViewed(bookId);
+
     container.innerHTML = '<div style="padding: 40px; text-align: center;"><p>Loading book details...</p></div>';
     modal.classList.add('active');
 
@@ -1062,6 +1107,7 @@ const App = {
 
       const book = data.book;
       const reviews = book.reviews || [];
+      const relatedBooks = book.related_books || [];
       const effectivePrice = (book.price * (1 - (book.discount_pct / 100))).toFixed(2);
       const isWishlisted = this.wishlist.includes(book.book_id);
 
@@ -1105,6 +1151,44 @@ const App = {
             </div>
           </div>
         </div>
+
+        <!-- Related Books in Domain Section -->
+        ${relatedBooks.length > 0 ? `
+          <div class="related-books-section">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px;">
+              <div>
+                <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--ink-black); margin: 0 0 4px;">Related Books in this Domain</h3>
+                <p style="font-size: 0.8rem; color: var(--ink-muted); margin: 0;">Explore companion titles and popular works in <strong>${escapeHtml(book.category_name || 'this category')}</strong></p>
+              </div>
+              <span style="font-size: 0.75rem; font-weight: 600; color: var(--burnt-orange); background: var(--warm-cream); padding: 3px 8px; border-radius: 4px;">${relatedBooks.length} recommendations</span>
+            </div>
+            <div class="related-books-grid">
+              ${relatedBooks.map(rb => {
+                const rbPrice = parseFloat(rb.effective_price || rb.price).toFixed(2);
+                const isOutOfStock = rb.stock_qty <= 0;
+                return `
+                  <div class="related-book-card" onclick="App.openBookModal(${rb.book_id})" title="View details of ${escapeQuote(rb.title)}">
+                    <div class="related-book-thumb">
+                      <img class="related-book-img" 
+                           src="${rb.cover_image || '/static/img/book-placeholder.svg'}" 
+                           alt="${escapeHtml(rb.title)}" 
+                           loading="lazy" 
+                           onerror="this.onerror=null; this.src='/static/img/book-placeholder.svg';" />
+                      ${rb.discount_pct > 0 ? `<span style="position: absolute; top: 4px; left: 4px; background: #dc2626; color: white; font-size: 0.65rem; font-weight: 700; padding: 1px 4px; border-radius: 3px;">-${rb.discount_pct}%</span>` : ''}
+                      ${isOutOfStock ? `<span style="position: absolute; bottom: 4px; left: 4px; background: rgba(0,0,0,0.75); color: #fca5a5; font-size: 0.65rem; font-weight: 700; padding: 1px 4px; border-radius: 3px;">Sold Out</span>` : ''}
+                    </div>
+                    <h4 style="font-size: 0.82rem; font-weight: 700; color: var(--ink-black); margin: 0 0 3px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${escapeHtml(rb.title)}">${escapeHtml(rb.title)}</h4>
+                    <p style="font-size: 0.72rem; color: var(--ink-muted); margin: 0 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(rb.author_names || '')}">${escapeHtml(rb.author_names || 'Unknown')}</p>
+                    <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: baseline;">
+                      <span style="font-size: 0.88rem; font-weight: 800; font-family: var(--font-mono); color: var(--burnt-orange);">৳${rbPrice}</span>
+                      <span style="font-size: 0.72rem; font-weight: 600; color: #f59e0b;">★ ${rb.avg_rating > 0 ? rb.avg_rating : 'New'}</span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
 
         <!-- Reviews Section -->
         <div style="margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
