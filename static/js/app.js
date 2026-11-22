@@ -943,6 +943,7 @@ const App = {
       if (res.ok && data.success) {
         // Order successfully committed to database
         this.closeCheckoutModal();
+        this.closeCartDrawer();
 
         // Clear cart
         this.cart = [];
@@ -2414,13 +2415,15 @@ function showToast(message, type = 'info') {
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
 
-  // Page Loader — show on every page load and refresh as requested
+  // Page Loader — sleek, responsive reveal animation without buffering lag
   const loader = document.getElementById('page-loader');
   if (loader) {
     setTimeout(() => {
       loader.classList.add('loaded');
       document.body.classList.add('page-revealed');
-      setTimeout(() => loader.remove(), 700);
-    }, 1800);
+      setTimeout(() => {
+        try { loader.remove(); } catch(e) {}
+      }, 500);
+    }, 450);
   }
 });
