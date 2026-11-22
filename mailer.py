@@ -17,8 +17,16 @@ CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'email_co
 OUTBOX_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'email_outbox.log')
 
 
-def send_via_brevo_api(api_key: str, sender_email: str, sender_name: str, to_email: str, subject: str, html_content: str, text_content: str):
+def send_via_brevo_api(api_key: str, sender_email: str, sender_name: str, to_email: str, subject: str, html_content: str, text_content: str, reply_to: str = None):
     """Dispatches transactional email via Brevo HTTPS API (Port 443 - works on Render Free Tier)."""
+    to_clean = (to_email or '').strip().lower()
+    if not to_clean or '@' not in to_clean:
+        return False, f"Invalid recipient email: '{to_email}'"
+
+    clean_sender_email = (sender_email or "tamimtahmid270@gmail.com").strip().lower()
+    clean_sender_name = (sender_name or "PageVault").strip()
+    clean_reply_to = (reply_to or clean_sender_email).strip().lower()
+
     url = "https://api.brevo.com/v3/smtp/email"
     headers = {
         "accept": "application/json",
@@ -26,8 +34,9 @@ def send_via_brevo_api(api_key: str, sender_email: str, sender_name: str, to_ema
         "content-type": "application/json"
     }
     payload = {
-        "sender": {"name": sender_name or "PageVault", "email": sender_email or "tamimtahmid270@gmail.com"},
-        "to": [{"email": to_email}],
+        "sender": {"name": clean_sender_name, "email": clean_sender_email},
+        "to": [{"email": to_clean}],
+        "replyTo": {"name": "PageVault Support", "email": clean_reply_to},
         "subject": subject,
         "htmlContent": html_content,
         "textContent": text_content
@@ -36,13 +45,20 @@ def send_via_brevo_api(api_key: str, sender_email: str, sender_name: str, to_ema
         data = json.dumps(payload).encode('utf-8')
         req = urllib.request.Request(url, data=data, headers=headers, method='POST')
         with urllib.request.urlopen(req, timeout=12) as resp:
-            return True, "Delivered via Brevo HTTPS API"
+            resp_body = resp.read().decode('utf-8', errors='ignore')
+            msg_id = ""
+            try:
+                msg_id = json.loads(resp_body).get('messageId', '')
+            except Exception:
+                pass
+            success_msg = f"Delivered via Brevo HTTPS API (messageId: {msg_id})" if msg_id else "Delivered via Brevo HTTPS API"
+            return True, success_msg
     except urllib.error.HTTPError as e:
         err_body = e.read().decode('utf-8', errors='ignore')
-        print(f"[Mailer] Brevo API HTTPError {e.code}: {err_body}")
+        print(f"[Mailer] Brevo API HTTPError {e.code} for recipient '{to_clean}': {err_body}")
         return False, f"Brevo HTTP {e.code}: {err_body}"
     except Exception as e:
-        print(f"[Mailer] Brevo API delivery error: {e}")
+        print(f"[Mailer] Brevo API delivery error for recipient '{to_clean}': {e}")
         return False, str(e)
 
 
@@ -239,10 +255,10 @@ def send_order_confirmation_email(to_email: str, customer_name: str, order_code:
     """
     admin_recipient = "tamimtahmid270@gmail.com"
     cfg = load_email_config()
-    sender_email = cfg.get('sender_email') or admin_recipient
+    sender_email = (cfg.get('sender_email') or admin_recipient).strip().lower()
     if '@' not in sender_email or 'pagevault.com' in sender_email:
         sender_email = admin_recipient
-    sender_name = cfg.get('sender_name') or "PageVault Orders"
+    sender_name = "PageVault Orders"
     brevo_key = os.environ.get('BREVO_API_KEY', '').strip()
 
     try:
@@ -370,25 +386,34 @@ PageVault Customer Care
 
     # 1. Send via Brevo API if key is present
     if brevo_key:
-        target_email = to_email if (to_email and '@' in to_email) else admin_recipient
-        ok, detail = send_via_brevo_api(brevo_key, sender_email, sender_name, target_email, subject, cust_html, cust_text)
+        target_email = (to_email or '').strip().lower()
+        if not target_email or '@' not in target_email:
+            target_email = admin_recipient
+
+        ok, detail = send_via_brevo_api(brevo_key, sender_email, sender_name, target_email, subject, cust_html, cust_text, reply_to=admin_recipient)
         if ok:
             delivered_customer = True
-            log_to_outbox(target_email, subject, f"Order #{order_code}", True, "Order confirmation email sent via Brevo HTTPS API")
-            print(f"[Mailer] Order confirmation email sent to {target_email} for #{order_code} via Brevo API")
+            log_to_outbox(target_email, subject, f"Order #{order_code}", True, f"Order confirmation sent via Brevo HTTPS API: {detail}")
+            print(f"[Mailer] Order confirmation email successfully sent to customer '{target_email}' for #{order_code} via Brevo API")
         else:
             delivery_detail = detail
             log_to_outbox(target_email, subject, f"Order #{order_code}", False, detail)
-            print(f"[Mailer] ERROR: Brevo order email failed: {detail}")
+            print(f"[Mailer] ERROR: Brevo order email to customer '{target_email}' failed: {detail}")
 
         # If customer email is different from admin, alert admin desk too
-        if target_email.lower().strip() != admin_recipient.lower().strip():
+        if target_email != admin_recipient:
             admin_subject = f"[New Order Placed] #{order_code} - ৳{tot_val:.2f} by {customer_name}"
-            send_via_brevo_api(brevo_key, sender_email, sender_name, admin_recipient, admin_subject, cust_html, cust_text)
-            log_to_outbox(admin_recipient, admin_subject, f"Order #{order_code}", True, "Admin order alert sent via Brevo API")
+            admin_ok, admin_detail = send_via_brevo_api(brevo_key, sender_email, sender_name, admin_recipient, admin_subject, cust_html, cust_text, reply_to=target_email)
+            log_to_outbox(admin_recipient, admin_subject, f"Order #{order_code}", admin_ok, f"Admin order alert: {admin_detail}")
+            if admin_ok:
+                print(f"[Mailer] Admin alert successfully sent to {admin_recipient} for #{order_code}")
+            else:
+                print(f"[Mailer] ERROR: Admin alert to {admin_recipient} failed: {admin_detail}")
 
         if delivered_customer:
-            return {'delivered': True, 'method': 'brevo_api'}
+            return {'delivered': True, 'method': 'brevo_api', 'detail': detail}
+        else:
+            return {'delivered': False, 'method': 'brevo_api_failed', 'message': delivery_detail}
 
     user = cfg.get('smtp_user', '').strip()
     pw = cfg.get('smtp_password', '').replace(' ', '').strip()
