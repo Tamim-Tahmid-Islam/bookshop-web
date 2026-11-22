@@ -336,8 +336,10 @@ class PageVaultRequestHandler(http.server.SimpleHTTPRequestHandler):
                         items=body.get('items', []),
                         transaction_id=res.get('transaction_id', '')
                     )
+                    res['email_dispatch'] = email_result
                 except Exception as e:
                     print(f"[Order] Order confirmation email dispatch failed: {e}")
+                    res['email_dispatch'] = {'delivered': False, 'error': str(e)}
 
                 # Automatically mark status as Confirmed upon placing order
                 if res.get('order_id'):
